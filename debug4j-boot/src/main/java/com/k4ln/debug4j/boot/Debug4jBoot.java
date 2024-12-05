@@ -126,6 +126,8 @@ public class Debug4jBoot {
         Debugger.shutdown();
 
         log.info("checkAppProcess break with Debug4j Boot shutdown");
+
+        System.exit(0);
     }
 
 
