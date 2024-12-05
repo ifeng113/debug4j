@@ -14,10 +14,8 @@ import org.smartboot.socket.transport.AioQuickServer;
 import org.smartboot.socket.transport.AioSession;
 import org.smartboot.socket.transport.WriteBuffer;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
@@ -51,10 +49,10 @@ public class SocketTFProxyServer {
     private static final Map<String, AioSession> sessionMap = new ConcurrentHashMap<>();
 
     /**
-     * clientOutletIps
+     * sessionId -> clientOutletIps
      */
     @Getter
-    private Set<String> clientOutletIps = new HashSet<>();
+    private Map<String, String> clientOutletIps = new ConcurrentHashMap<>();
 
     public void start() throws Exception {
 
@@ -81,7 +79,7 @@ public class SocketTFProxyServer {
                             socketServer.sendMessage(proxyReqVO.getClientSessionId(), getSessionClientId(session), ProtocolTypeEnum.COMMAND,
                                     CommandProxyMessage.buildCommandProxyMessage(CommandTypeEnum.PROXY_OPEN, proxyReqVO.getRemoteHost(),
                                             proxyReqVO.getRemotePort()));
-                            clientOutletIps.add(session.getRemoteAddress().getAddress().getHostAddress());
+                            clientOutletIps.put(session.getSessionID(), session.getRemoteAddress().getAddress().getHostAddress());
                             return;
                         }
                     } catch (Exception e) {
@@ -97,7 +95,7 @@ public class SocketTFProxyServer {
                             CommandProxyMessage.buildCommandProxyMessage(CommandTypeEnum.PROXY_CLOSE, proxyReqVO.getRemoteHost(),
                                     proxyReqVO.getRemotePort()));
                     try {
-                        clientOutletIps.remove(session.getRemoteAddress().getAddress().getHostAddress());
+                        clientOutletIps.remove(session.getSessionID());
                     } catch (Exception e) {
                         e.printStackTrace();
                     }

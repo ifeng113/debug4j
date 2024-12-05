@@ -20,6 +20,7 @@ import org.springframework.stereotype.Component;
 
 import java.net.BindException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -53,7 +54,7 @@ public class ProxyService {
         for (Map.Entry<String, SocketTFProxyServer> entry : proxyServers.entrySet()) {
             if (entry.getKey().startsWith(clientSessionId)) {
                 ProxyDetailsRespVO serverRespVO = BeanUtil.toBean(entry.getValue().getProxyReqVO(), ProxyDetailsRespVO.class);
-                serverRespVO.setClientOutletIps(entry.getValue().getClientOutletIps());
+                serverRespVO.setClientOutletIps(new HashSet<>(entry.getValue().getClientOutletIps().values()));
                 proxyDetailsRespVOS.add(serverRespVO);
             }
         }

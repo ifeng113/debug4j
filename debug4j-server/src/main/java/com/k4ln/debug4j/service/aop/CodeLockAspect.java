@@ -86,9 +86,12 @@ public class CodeLockAspect {
             String className = classNameExpression.getValue(context, String.class);
             if (StrUtil.isNotBlank(clientSessionId) && StrUtil.isNotBlank(className)) {
                 codeUpdateLock(clientSessionId, className);
-                proceed = pjp.proceed(pjp.getArgs());
-                codeUpdateUnLock(clientSessionId, className);
-                return proceed;
+                try {
+                    proceed = pjp.proceed(pjp.getArgs());
+                    return proceed;
+                } finally {
+                    codeUpdateUnLock(clientSessionId, className);
+                }
             } else {
                 throw new BusinessAbort("code lock error with clientSessionId:" + clientSessionId + " className:" + className);
             }
