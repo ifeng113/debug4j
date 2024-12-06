@@ -1,3 +1,39 @@
+### mark2
+
+1、使用agent可能改变字节码，特别是ByteBuddy，会导致源码热更新与字节码热更新功能不可用；在JDK8的情况下，行补丁因无法反编译执行源码，也不可用
+- 因此使用debug4j时推荐【尽量不使用agent，或修改agent相关配置】，后续debug4j会集成常用agent功能以便替代使用
+- 相关问题arthas也存在
+	-> 【skywalking兼容arthas问题】：https://blog.csdn.net/weixin_42106289/article/details/128467219
+	-> 【java.lang.ClassFormatError: null、skywalking arthas 兼容使用】：https://arthas.aliyun.com/doc/faq.html#java-lang-classformaterror-null%E3%80%81skywalking-arthas-%E5%85%BC%E5%AE%B9%E4%BD%BF%E7%94%A8
+
+2、debug4j-boot（进程代理模式），在更改代码后需要对debug4j-boot与debug4j-packing进行shadowJar，因为debug4j-daemon是通过创建java子进程（debug4j-packing压缩包中的debug4j-boot.jar）运行的，而不是源码编译运行
+- 后续考虑debug4j-boot启动增加版本号相关打印，以方便确认maven中央仓库中的debug4j-packing包含的debug4j-boot.jar是否为相应版本
+
+3、字节码热更新请注意class文件的jdk编译版本兼容问题，版本不不兼容无法如热更新；同时-javaagent指定的agent编译版本也需要保持与主程序的JDK版本兼容
+
+4、无论是代码热更新还是字节码热更新均无法修改字段名和方法名等修改类签名行为（jvm支持新增方法与变量，不支持删除方法与变量[修改可以理解成删除再新增]，debug4j暂时仅支持方法体内的代码变更），强制修改会导致热更新失败
+
+5、前端换行使用\n作为换行标识
+
+6、行补丁代码三方工具类尽量使用含包名的全路径，防止重名类造成编译失败，如：
+```json
+{
+    "clientSessionId": "aioSession-1341587928",
+    "className": "com.k4ln.demo.Demo1DaemonMain",
+    "lineMethodName": "logNumber",
+    "lineNumber": 24,
+    "sourceCode": "log.info(\"com.alibaba.fastjson2.JSON.toJSONString(patch13)\");"
+}
+```
+
+7、行源码查询需要指定，如果使用过agent可能导致方法名变成了代码方法名等，需要先查询源码（方法名传空）获取到真实方法名，再查询具体方法行号信息
+
+8、行源码返回的行号数组需要根据返回的首行行号按行顺序与行号列表依次匹配行号，因代码中可能存在"\n"字符和补丁行干扰，暂时先返给前端，补丁代码时需要开发者判断并传入行号
+- 后续通过遍历行代码（需要过滤补丁代码，因为补丁代码反编译会换行，但实际不占用行号），再代码行末增加行号注释，如：// 24
+
+9、行代码补丁是默认通过在代码行行首插入代码实现。需注意插入的代码不会影响行号，但是反编译出的结果会分行展示，当有插入补丁代码时，反编译后会自动在增加的代码行后标记下一行的行号
+
+
 ### mark1
 > Debug4jAttach
 
