@@ -94,11 +94,7 @@ public class SocketTFProxyServer {
                     socketServer.sendMessage(proxyReqVO.getClientSessionId(), getSessionClientId(session), ProtocolTypeEnum.COMMAND,
                             CommandProxyMessage.buildCommandProxyMessage(CommandTypeEnum.PROXY_CLOSE, proxyReqVO.getRemoteHost(),
                                     proxyReqVO.getRemotePort()));
-                    try {
-                        clientOutletIps.remove(session.getSessionID());
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
+                    clientOutletIps.remove(session.getSessionID());
                 } else if (throwable != null) {
                     throwable.printStackTrace();
                 }
