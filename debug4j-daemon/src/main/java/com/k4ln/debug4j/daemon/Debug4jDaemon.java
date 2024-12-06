@@ -110,7 +110,7 @@ public class Debug4jDaemon {
             return null;
         }
         // 正则表达式匹配 address 后的端口号
-        String regex = "address=[^:]*:(\\d+)";
+        String regex = "address=\\*?:?(\\d+)";
         Pattern pattern = Pattern.compile(regex);
         Matcher matcher = pattern.matcher(input);
         return matcher.find() ? matcher.group(1) : null;
