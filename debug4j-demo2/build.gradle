@@ -15,6 +15,7 @@ java {
 }
 
 // docker run -d -p 33999:33999 --name demo2 com.k4ln/debug4j-demo2:0.0.1-snapshot
+// docker run -d -p 33999:33999 -e JAVA_OPTIONS='-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005' --name demo2 com.k4ln/debug4j-demo2:0.0.1-snapshot
 docker {
     url = 'tcp://124.71.163.140:2375'
     springBootApplication {
@@ -22,6 +23,10 @@ docker {
         baseImage = 'eclipse-temurin:17.0.13_11-jdk'
         maintainer = 'k4ln'
     }
+}
+
+dockerCreateDockerfile {
+    entryPoint("sh","-c",'java $JAVA_OPTIONS -cp /app/resources:/app/classes:/app/libs/* com.k4ln.demo2.Demo2Application $APP_OPTIONS')
 }
 
 dependencies {
