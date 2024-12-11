@@ -1,6 +1,6 @@
 # Debug4j
 
-**Debug4j** 是一款高效便捷的 Java 调试工具，专注于远程服务器端的 Java 代码调试。它通过极具创意的方式实现了交互便捷的可视化远程代码修改与调试功能，具备轻松部署与快速集成的特点。
+**Debug4j** 是一款高效、便捷的 Java 调试工具，专注于远程服务器端的 Java 代码调试。它通过极具创意的方式实现了可视化远程代码修改与调试功能，具备轻松部署与快速集成的特点。
 
 ### 支持版本
 - 本仓库适用于 JDK 17 及以上版本。
@@ -54,7 +54,7 @@
 ```xml
 <dependency>
     <groupId>io.github.ifeng113</groupId>
-    <artifactId>jdk8-debug4j-daemon</artifactId>
+    <artifactId>debug4j-daemon</artifactId>
     <version>0.0.1</version>
 </dependency>
 ```
@@ -73,7 +73,7 @@ Debug4jDaemon.start(true, "demo1-daemon", "com.k4ln", "192.168.1.13", 7988, "k4l
 ```xml
 <dependency>
     <groupId>io.github.ifeng113</groupId>
-    <artifactId>jdk8-debug4j-spring-boot-starter</artifactId>
+    <artifactId>debug4j-spring-boot-starter</artifactId>
     <version>0.0.1</version>
 </dependency>
 ```

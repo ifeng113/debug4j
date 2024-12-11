@@ -54,7 +54,7 @@ Add the following dependency to your project:
 ```xml
 <dependency>
     <groupId>io.github.ifeng113</groupId>
-    <artifactId>jdk8-debug4j-daemon</artifactId>
+    <artifactId>debug4j-daemon</artifactId>
     <version>0.0.1</version>
 </dependency>
 ```
@@ -74,7 +74,7 @@ Add the following dependency to your project:
 ```xml
 <dependency>
     <groupId>io.github.ifeng113</groupId>
-    <artifactId>jdk8-debug4j-spring-boot-starter</artifactId>
+    <artifactId>debug4j-spring-boot-starter</artifactId>
     <version>0.0.1</version>
 </dependency>
 ```
