@@ -8,9 +8,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -103,7 +103,8 @@ public class AttachHub {
                 }
             }
         } else {
-            taskEmitters = new ArrayList<>();
+            // rd：ArrayList（taskEmitters.forEach会在taskEmitters对象修改时触发ConcurrentModificationException）
+            taskEmitters = new CopyOnWriteArrayList<>();
         }
         SseEmitter sseEmitter = new SseEmitter(30 * 60 * 1000L);
         sseEmitter.onCompletion(() -> removeSseEmitter(key, loginId));

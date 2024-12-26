@@ -1,7 +1,11 @@
 package com.k4ln.debug4j.controller;
 
 
-import cn.dev33.satoken.stp.StpUtil;
+import cn.dev33.satoken.SaManager;
+import cn.dev33.satoken.context.SaHolder;
+import cn.dev33.satoken.error.SaErrorCode;
+import cn.dev33.satoken.exception.NotHttpBasicAuthException;
+import cn.dev33.satoken.secure.SaBase64Util;
 import com.k4ln.debug4j.common.response.Result;
 import com.k4ln.debug4j.controller.vo.*;
 import com.k4ln.debug4j.service.AttachHub;
@@ -15,6 +19,8 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
+
+import static cn.dev33.satoken.httpauth.basic.SaHttpBasicTemplate.DEFAULT_REALM;
 
 /**
  * 增强接口类
@@ -154,8 +160,14 @@ public class AttachController {
      * @return
      */
     @GetMapping("/task")
-    public SseEmitter getTaskDetails(@RequestParam("path") String path, @RequestParam("sessionId") String sessionId) {
-        return attachHub.getSseEmitter(sessionId + "@" + path, (String) StpUtil.getLoginId());
+    public SseEmitter getTaskDetails(@RequestParam("path") String path, @RequestParam("sessionId") String sessionId,
+                                     @RequestParam("token") String token, @RequestParam("loginId") String loginId) {
+       if (SaManager.getConfig().getHttpBasic().equals(SaBase64Util.decode(token))){
+           return attachHub.getSseEmitter(sessionId + "@" + path, loginId);
+       } else {
+           SaHolder.getResponse().setStatus(401).setHeader("WWW-Authenticate", "Basic Realm=" + DEFAULT_REALM);
+           throw new NotHttpBasicAuthException().setCode(SaErrorCode.CODE_10311);
+       }
     }
 
 }
