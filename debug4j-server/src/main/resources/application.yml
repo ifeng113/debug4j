@@ -4,6 +4,9 @@ server:
 spring:
   application:
     name: debug4j-server
+  web:
+    resources:
+      static-locations: "classpath:/dist"
 
 debug4j:
   key: k4ln
@@ -11,6 +14,5 @@ debug4j:
 
 sa-token:
   http-basic: 'k4ln:123456'
-  is-write-header: true
   max-login-count: -1
 
