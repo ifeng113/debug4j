@@ -165,7 +165,7 @@ public class AttachController {
        if (SaManager.getConfig().getHttpBasic().equals(SaBase64Util.decode(token))){
            return attachHub.getSseEmitter(sessionId + "@" + path, loginId);
        } else {
-           SaHolder.getResponse().setStatus(401).setHeader("WWW-Authenticate", "Basic Realm=" + DEFAULT_REALM);
+           SaHolder.getResponse().setStatus(401);
            throw new NotHttpBasicAuthException().setCode(SaErrorCode.CODE_10311);
        }
     }
