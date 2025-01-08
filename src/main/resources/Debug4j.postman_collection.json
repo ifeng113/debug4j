@@ -274,7 +274,7 @@
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "http://{{host}}/attach/task?path=/app/debug4j/logs/debug4j-boot.log&sessionId=aioSession-1341587928",
+					"raw": "http://{{host}}/attach/task?path=/app/debug4j/logs/debug4j-boot.log&sessionId=aioSession-1341587928&token=azRsbjoxMjM0NTY=&loginId=abc",
 					"protocol": "http",
 					"host": [
 						"{{host}}"
@@ -291,6 +291,14 @@
 						{
 							"key": "sessionId",
 							"value": "aioSession-1341587928"
+						},
+						{
+							"key": "token",
+							"value": "azRsbjoxMjM0NTY="
+						},
+						{
+							"key": "loginId",
+							"value": "abc"
 						}
 					]
 				}

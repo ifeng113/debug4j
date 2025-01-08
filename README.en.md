@@ -1,50 +1,76 @@
 # Debug4j
 
-**Debug4j** is an efficient and convenient Java debugging tool designed for remote server-side debugging. It creatively enables interactive and intuitive visual remote code modification and debugging, featuring easy deployment and rapid integration.
+**Debug4j** is an efficient and user-friendly Java debugging tool focused on debugging Java code on remote servers. It enables visual remote code modification and debugging through a creative approach, offering easy deployment and seamless integration.
 
 ### Supported Versions
-- This repository supports JDK 17 and above.
-- If you are using JDK 8, please refer to [debug4j-jdk8](https://github.com/ifeng113/debug4j-jdk8).
+- This repository is compatible with JDK 17 and above.
+- For JDK 8, please refer to [debug4j-jdk8](https://github.com/ifeng113/debug4j-jdk8).
 
 ---
 
 ## Features
 
-- **Proxy Penetration Service**: Enables remote proxy penetration in isolated environments (e.g., Docker, Kubernetes).
-- **JWDP Remote Debugging**: Convenient configuration for remote debugging.
-- **Log File Monitoring**: Real-time retrieval of application logs.
-- **Program Class and Source Code Access**: Dynamic loading and parsing of target program classes and source code.
-- **Source Code Hot Update**: Dynamic runtime source code updates.
-- **Bytecode Hot Update**: Direct modification and update of bytecode.
-- **Line-Level Code Insertion**: Quick insertion of debugging code.
-- **Code Reversion**: Restore to the state before updates.
+- **Proxy Penetration Service**: Enables remote proxy penetration in isolated environments like Docker and Kubernetes.
+- **JWDP Remote Debugging**: Simplifies remote debugging configuration.
+- **Log File Monitoring**: Retrieves real-time application log information.
+- **Class and Source Code Reading**: Dynamically loads and parses target program classes and source code.
+- **Source Code Hot Update**: Supports runtime dynamic updates to source code.
+- **Bytecode Hot Update**: Allows direct modification and updating of bytecode.
+- **Line-level Code Injection**: Quickly inserts debugging code.
+- **Code Reversion**: Restores code to its state before updates.
 
 ---
 
 ## Quick Start
 
-### Server Installation
+### Setting Up the Server
 
 1. Pull the Docker image:
    ```bash
-   docker pull k4ln/debug4j-server:0.0.1_api
+   docker pull k4ln/debug4j-server:0.0.1
    ```
 
 2. Start the server:
    ```bash
-   docker run --net=host -d --name debug4j-server k4ln/debug4j-server:0.0.1_api
+   docker run --net=host -d --name debug4j-server k4ln/debug4j-server:0.0.1
    ```
 
-3. Set the communication key and API key:
+3. Configure the communication key and API key:
    ```bash
-   docker run --net=host -d --name debug4j-server k4ln/debug4j-server:0.0.1_api \
+   docker run --net=host -d --name debug4j-server k4ln/debug4j-server:0.0.1 \
        --debug4j.key=k4ln --sa-token.http-basic='k4ln:123456'
    ```
 
    - `--debug4j.key`: Sets the communication key.
    - `--sa-token.http-basic`: Sets the API communication key.
 
-> Refer to the API documentation at [Debug4j.postman_collection.json](https://github.com/ifeng113/debug4j/blob/master/src/main/resources/Debug4j.postman_collection.json) (Web management page is under development).
+> **Port Details**
+
+- `7987`: API and web debugging port. Visit [http://debug4j-server:7987](http://debug4j-server:7987) for the debugging management page.
+- `7988`: Communication port between debug4j-server and the target application. Configurable with `--debug4j.socket-port`.
+- `33000-34000`: Default proxy open port range for debug4j-server. If the server is deployed on a public network, close these firewall ports. Configurable with `--debug4j.min-proxy-port` and `--debug4j.max-proxy-port`.
+
+> API documentation is available in [Debug4j.postman_collection.json](https://github.com/ifeng113/debug4j/blob/master/src/main/resources/Debug4j.postman_collection.json).
+
+> **Debugging Configuration + Proxy Management + Log Management**
+
+![Debugging Configuration + Proxy Management](src/main/resources/md/static/d1.png)
+
+> **Source Code Management**
+
+![Source Code Management](src/main/resources/md/static/d2.png)
+
+> **Log Monitoring**
+
+![Log Monitoring](src/main/resources/md/static/d3.png)
+
+> **Source Code Hot Update**
+
+![Source Code Hot Update](src/main/resources/md/static/d4.png)
+
+> **Source Code Patching**
+
+![Source Code Patching](src/main/resources/md/static/d5.png)
 
 ---
 
@@ -63,8 +89,7 @@ Start Debug4j in your application:
 ```java
 Debug4jDaemon.start(true, "demo1-daemon", "com.k4ln", "192.168.1.13", 7988, "k4ln");
 ```
-
-For example code, refer to [debug4j-demo1](https://github.com/ifeng113/debug4j/tree/master/debug4j-demo1).
+Refer to the example code in [debug4j-demo1](https://github.com/ifeng113/debug4j/tree/master/debug4j-demo1).
 
 ---
 
@@ -87,27 +112,25 @@ debug4j:
   port: 7988
   key: k4ln
 ```
-
-For example code, refer to [debug4j-demo2](https://github.com/ifeng113/debug4j/tree/master/debug4j-demo2).
+Refer to the example code in [debug4j-demo2](https://github.com/ifeng113/debug4j/tree/master/debug4j-demo2).
 
 ---
 
-## Limitations and Notes
+## Limitations and Considerations
 
 1. **Class Signature Restrictions**:
-   - Code hot updates or bytecode hot updates cannot modify field names or method names (i.e., class signatures).
-   - JVM supports adding methods and variables but does not support removal. Debug4j currently supports changes only within method bodies.
+   - Code hot updates or bytecode hot updates cannot modify class field names or method signatures (i.e., class signatures).
+   - While the JVM supports adding methods and variables, it does not support deletion. Debug4j currently supports changes only within method bodies.
 
 2. **Agent Compatibility Issues**:
-   - Using agents (e.g., ByteBuddy) may modify bytecode, making source code hot updates and bytecode hot updates unavailable.
-   - In JDK 8 environments, source-level debugging features such as line-level code insertion may not be available due to source code decompilation limitations.
+   - Agents (e.g., ByteBuddy) may modify bytecode, causing source code hot update and bytecode hot update functions to become unavailable.
    - It is recommended to avoid using agents or adjust related configurations.
 
 3. **Bytecode Version Compatibility**:
-   - Ensure that the class file used for hot updates is compatible with the target JVM version.
+   - Ensure the compiled version of the class files used for hot updates is compatible with the target JVM.
 
-4. **Code Line Patch Notes**:
-   - When using third-party utility classes, use the full path to avoid compilation errors caused by class name conflicts.
+4. **Code Line Patch Considerations**:
+   - When using third-party utility classes, use fully qualified paths to avoid compilation failures due to class name conflicts.
 
    Example:
    ```json
@@ -126,4 +149,3 @@ For example code, refer to [debug4j-demo2](https://github.com/ifeng113/debug4j/t
 
 - [Smart-Socket](https://github.com/smartboot/smart-socket)
 - [Sa-Token](https://github.com/dromara/sa-token)
-

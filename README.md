@@ -27,25 +27,51 @@
 
 1. 拉取 Docker 镜像：
    ```bash
-   docker pull k4ln/debug4j-server:0.0.1_api
+   docker pull k4ln/debug4j-server:0.0.1
    ```
 
 2. 启动服务端：
    ```bash
-   docker run --net=host -d --name debug4j-server k4ln/debug4j-server:0.0.1_api
+   docker run --net=host -d --name debug4j-server k4ln/debug4j-server:0.0.1
    ```
 
 3. 设置通信密钥和 API 密钥：
    ```bash
-   docker run --net=host -d --name debug4j-server k4ln/debug4j-server:0.0.1_api \
+   docker run --net=host -d --name debug4j-server k4ln/debug4j-server:0.0.1 \
        --debug4j.key=k4ln --sa-token.http-basic='k4ln:123456'
    ```
 
    - `--debug4j.key`：设置通信密钥。
    - `--sa-token.http-basic`：设置 API 通信密钥。
 
-> API 文档见 [Debug4j.postman_collection.json](https://github.com/ifeng113/debug4j/blob/master/src/main/resources/Debug4j.postman_collection.json) （Web 管理页面正在开发中）。
+>**端口说明**
 
+   - `7987`：api及web调试端口，访问[http://debug4j-server:7987](http://debug4j-server:7987) 进入调试管理页面。
+   - `7988`：debug4j-server与被调试应用的通信端口。配置项： `--debug4j.socket-port`。
+   - `33000-34000`：debug4j-server默认代理开放端口区段，如果server部署在公网中，请关闭对应端口防火墙。配置项： `--debug4j.min-proxy-port` 与 `--debug4j.max-proxy-port`。
+
+> API 文档见 [Debug4j.postman_collection.json](https://github.com/ifeng113/debug4j/blob/master/src/main/resources/Debug4j.postman_collection.json)。
+
+> **调试配置 + 代理管理 + 日志管理**
+
+![d1.jpg](src/main/resources/md/static/d1.png)
+
+> **源码类管理**
+
+![d2.jpg](src/main/resources/md/static/d2.png)
+
+> **日志查看**
+
+![d3.jpg](src/main/resources/md/static/d3.png)
+
+> **源码热更新**
+
+![d4.jpg](src/main/resources/md/static/d4.png)
+
+> **源码补丁**
+
+![d5.jpg](src/main/resources/md/static/d5.png)
+ 
 ---
 
 ### Java 应用集成
@@ -98,7 +124,6 @@ debug4j:
 
 2. **Agent 兼容性问题**：
    - 使用 Agent（如 ByteBuddy）可能修改字节码，导致源码热更新和字节码热更新功能不可用。
-   - 在 JDK 8 环境下，因无法反编译执行源码，行级源码插入功能也可能不可用。
    - 推荐尽量避免使用 Agent 或调整相关配置。
 
 3. **字节码版本兼容性**：
