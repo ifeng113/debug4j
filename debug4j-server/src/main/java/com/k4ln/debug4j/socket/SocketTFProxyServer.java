@@ -54,6 +54,12 @@ public class SocketTFProxyServer {
     @Getter
     private Map<String, String> clientOutletIps = new ConcurrentHashMap<>();
 
+    public void shutdown() {
+        if (server != null) {
+            server.shutdown();
+        }
+    }
+
     public void start() throws Exception {
 
         processor = new AbstractMessageProcessor<>() {

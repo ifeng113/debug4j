@@ -50,6 +50,17 @@ public class AttachService {
     }
 
     /**
+     * ping客户端
+     */
+    public void ping(AttachPingReqVO attachPingReqVO) {
+        clientSessionCheck(attachPingReqVO.getClientSessionId());
+        CommandInfoMessage commandInfoMessage = socketServer.getInfoMessageMap().get(attachPingReqVO.getClientSessionId());
+        String reqId = UUID.fastUUID().toString(true);
+        socketServer.sendMessage(attachPingReqVO.getClientSessionId(), HashUtil.fnvHash(reqId), ProtocolTypeEnum.COMMAND,
+                CommandLogMessage.buildCommandLogMessage("receive ping uniqueId: " + commandInfoMessage.getUniqueId()));
+    }
+
+    /**
      * 获取所有类
      *
      * @param attachClassAllReqVO

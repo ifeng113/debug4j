@@ -41,6 +41,17 @@ public class AttachController {
     AttachHub attachHub;
 
     /**
+     * ping客户端
+     *
+     * @return
+     */
+    @PostMapping("/ping")
+    public Result<Boolean> ping(@RequestBody @Valid AttachPingReqVO attachPingReqVO) {
+        attachService.ping(attachPingReqVO);
+        return Result.ok(true);
+    }
+
+    /**
      * 获取所有类
      *
      * @return

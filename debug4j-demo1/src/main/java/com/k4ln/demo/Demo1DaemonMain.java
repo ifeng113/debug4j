@@ -9,7 +9,7 @@ public class Demo1DaemonMain {
 
     public static void main(String[] args) {
 
-        Debug4jDaemon.start(true, "demo1-daemon", "com.k4ln","124.71.163.140", 7988, "k4ln");
+        Debug4jDaemon.start(true, "demo1-daemon", "com.k4ln","192.168.1.164", 7988, "k4ln");
 
         for (int i = 0; i < 1000; i++) {
             logNumber(i);

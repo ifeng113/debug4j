@@ -3,6 +3,7 @@ package com.k4ln.debug4j.controller;
 
 import com.k4ln.debug4j.common.response.Result;
 import com.k4ln.debug4j.controller.vo.ProxyDetailsRespVO;
+import com.k4ln.debug4j.controller.vo.ProxyRemoveReqVO;
 import com.k4ln.debug4j.controller.vo.ProxyReqVO;
 import com.k4ln.debug4j.controller.vo.ProxyRespVO;
 import com.k4ln.debug4j.service.ProxyService;
@@ -49,6 +50,18 @@ public class ProxyController {
     @PostMapping
     public Result<ProxyRespVO> proxy(@RequestBody @Valid ProxyReqVO proxyReqVO) {
         return Result.ok(proxyService.proxy(proxyReqVO));
+    }
+
+    /**
+     * 删除代理
+     *
+     * @param removeReqVO
+     * @return
+     */
+    @PostMapping("/remove")
+    public Result<Boolean> proxyRemove(@RequestBody @Valid ProxyRemoveReqVO removeReqVO) {
+        proxyService.proxyRemove(removeReqVO);
+        return Result.ok(true);
     }
 
 }

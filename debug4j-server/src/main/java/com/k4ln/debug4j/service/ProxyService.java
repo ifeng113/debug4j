@@ -9,6 +9,7 @@ import com.k4ln.debug4j.common.response.exception.BaseException;
 import com.k4ln.debug4j.common.response.exception.abort.BusinessAbort;
 import com.k4ln.debug4j.config.SocketServerProperties;
 import com.k4ln.debug4j.controller.vo.ProxyDetailsRespVO;
+import com.k4ln.debug4j.controller.vo.ProxyRemoveReqVO;
 import com.k4ln.debug4j.controller.vo.ProxyReqVO;
 import com.k4ln.debug4j.controller.vo.ProxyRespVO;
 import com.k4ln.debug4j.socket.SocketServer;
@@ -132,11 +133,38 @@ public class ProxyService {
         List<String> removeKeys = new ArrayList<>();
         proxyServers.keySet().forEach(e -> {
             if (e.startsWith(clientSessionId)) {
+                try {
+                    proxyServers.get(e).shutdown();
+                } catch (Exception exception) {
+                    exception.printStackTrace();
+                }
                 removeKeys.add(e);
             }
         });
         removeKeys.forEach(proxyServers::remove);
     }
 
+    /**
+     * 删除代理
+     *
+     * @param removeReqVO
+     * @return
+     */
+    public void proxyRemove(ProxyRemoveReqVO removeReqVO) {
+        ProxyReqVO proxyReqVO = BeanUtil.copyProperties(removeReqVO, ProxyReqVO.class);
+        clientSessionCheck(proxyReqVO);
+        String proxyKey = getProxyKey(proxyReqVO);
+        if (proxyServers.containsKey(proxyKey)) {
+            try {
+                SocketTFProxyServer socketTFProxyServer = proxyServers.get(proxyKey);
+                socketTFProxyServer.shutdown();
+                proxyServers.remove(proxyKey);
+            } catch (Exception e) {
+                throw new BusinessAbort("proxy remove with error: " + e.getMessage());
+            }
+        } else {
+            throw new BusinessAbort("proxy not exist");
+        }
+    }
 
 }
