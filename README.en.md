@@ -27,17 +27,17 @@
 
 1. Pull the Docker image:
    ```bash
-   docker pull k4ln/debug4j-server:0.0.1
+   docker pull k4ln/debug4j-server:0.0.1.1
    ```
 
 2. Start the server:
    ```bash
-   docker run --net=host -d --name debug4j-server k4ln/debug4j-server:0.0.1
+   docker run --net=host -d --name debug4j-server k4ln/debug4j-server:0.0.1.1
    ```
 
 3. Configure the communication key and API key:
    ```bash
-   docker run --net=host -d --name debug4j-server k4ln/debug4j-server:0.0.1 \
+   docker run --net=host -d --name debug4j-server k4ln/debug4j-server:0.0.1.1 \
        --debug4j.key=k4ln --sa-token.http-basic='k4ln:123456'
    ```
 
