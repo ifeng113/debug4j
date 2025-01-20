@@ -142,6 +142,10 @@ debug4j:
        "sourceCode": "log.info(\"com.alibaba.fastjson2.JSON.toJSONString(patch13)\");"
    }
    ```
+   
+5. **应用集成限制**：
+   - 应用集成允许使用jdk作为基础镜像，jdk17推荐使用：```eclipse-temurin:17.0.13_11-jdk```。更多镜像：https://hub.docker.com/_/eclipse-temurin/tags?page=1
+   - 如果开启远程调试，需在java启动时手动配置：```-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005```
 
 ---
 
@@ -150,3 +154,10 @@ debug4j:
 - [Smart-Socket](https://github.com/smartboot/smart-socket)
 - [Sa-Token](https://github.com/dromara/sa-token)
 
+---
+
+## 交流
+
+- QQ群：1017333395
+
+  ![qq.jpg](src/main/resources/md/static/qq.png)
