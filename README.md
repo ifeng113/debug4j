@@ -147,7 +147,7 @@ debug4j:
    - 应用集成必须使用jdk作为基础镜像，jdk17推荐使用：```eclipse-temurin:17.0.13_11-jdk```。更多镜像：https://hub.docker.com/_/eclipse-temurin/tags?page=1
    - 如果开启远程调试，需在java启动时手动配置：
    
-     ```-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005```
+     ```-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005```
 
 ---
 

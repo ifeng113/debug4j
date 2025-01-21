@@ -147,7 +147,7 @@ Refer to the example code in [debug4j-demo2](https://github.com/ifeng113/debug4j
    - Application integration must use JDK as the base image. For JDK 8, it is recommended to use: ```eclipse-temurin:17.0.13_11-jdk```. More images can be found at: https://hub.docker.com/_/eclipse-temurin/tags?page=1
    - If remote debugging is enabled, you need to manually configure the following when starting Java: 
    
-     ```-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005.```
+     ```-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005```
 
 ---
 
