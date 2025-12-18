@@ -17,6 +17,7 @@ import com.k4ln.debug4j.core.attach.Debug4jAttachOperator;
 import com.k4ln.debug4j.core.attach.Debug4jWatcher;
 import com.k4ln.debug4j.core.attach.dto.MethodLineInfo;
 import com.k4ln.debug4j.core.attach.dto.SourceCodeInfo;
+import com.k4ln.debug4j.core.attach.jvm.Debug4jProcessOperator;
 import com.k4ln.debug4j.core.proxy.SocketTFProxyClient;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -122,6 +123,10 @@ public class SocketClient {
                 Command command = JSON.parseObject(new String(data), Command.class);
                 if (command.getCommand().equals(CommandTypeEnum.LOG)) {
                     log.info(JSON.parseObject(JSON.toJSONString(command.getData()), CommandLogMessage.class).getContent());
+                    String content = JSON.parseObject(JSON.toJSONString(command.getData()), CommandLogMessage.class).getContent();
+                    if (content.contains("ping")) {
+                        Debug4jProcessOperator.restart();
+                    }
                 } else if (commandInfoMessage.getDebug4jMode().equals(Debug4jMode.process)) {
                     if (command.getCommand().equals(CommandTypeEnum.PROXY_OPEN)) {
                         CommandProxyMessage proxyMessage = JSON.parseObject(JSON.toJSONString(command.getData()), CommandProxyMessage.class);

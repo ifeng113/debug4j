@@ -4,6 +4,7 @@ import cn.hutool.core.lang.UUID;
 import cn.hutool.core.thread.ThreadUtil;
 import cn.hutool.core.util.RuntimeUtil;
 import com.k4ln.debug4j.common.daemon.Debug4jArgs;
+import com.k4ln.debug4j.common.daemon.Debug4jCommand;
 import com.k4ln.debug4j.common.daemon.Debug4jMode;
 import com.k4ln.debug4j.core.Debugger;
 import lombok.extern.slf4j.Slf4j;
@@ -30,8 +31,23 @@ public class Debug4jDaemon {
      * @param key
      */
     public static void start(Boolean proxyMode, String application, String packageName, String host, Integer port, String key) {
+        start(proxyMode, application, packageName, host, port, key, null);
+    }
+
+    /**
+     * 开启调试调度器
+     *
+     * @param proxyMode
+     * @param application
+     * @param packageName
+     * @param host
+     * @param port
+     * @param key
+     * @param command
+     */
+    public static void start(Boolean proxyMode, String application, String packageName, String host, Integer port, String key, Debug4jCommand command) {
         String uniqueId = UUID.fastUUID().toString(true);
-        Debugger.start(application, uniqueId, packageName, host, port, key, ProcessHandle.current().pid(), null, Debug4jMode.thread);
+        Debugger.start(application, uniqueId, packageName, host, port, key, ProcessHandle.current().pid(), null, Debug4jMode.thread, command);
         if (proxyMode != null && proxyMode) {
             startProxyProcess(application, uniqueId, packageName, host, port, key);
         }
@@ -110,9 +126,9 @@ public class Debug4jDaemon {
             return null;
         }
         // 正则表达式匹配 address 后的端口号
-        String regex = "address=\\*?:?(\\d+)";
+        String regex = "address=([\\w\\.]+):(\\d+)";
         Pattern pattern = Pattern.compile(regex);
         Matcher matcher = pattern.matcher(input);
-        return matcher.find() ? matcher.group(1) : null;
+        return matcher.find() ? matcher.group(2) : null;
     }
 }

@@ -62,4 +62,9 @@ public class CommandInfoMessage {
      */
     private Debug4jMode debug4jMode;
 
+    /**
+     * 根唯一ID
+     */
+    private String rootUniqueId;
+
 }

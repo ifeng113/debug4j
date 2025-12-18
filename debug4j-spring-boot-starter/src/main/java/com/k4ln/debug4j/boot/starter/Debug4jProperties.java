@@ -1,5 +1,6 @@
 package com.k4ln.debug4j.boot.starter;
 
+import com.k4ln.debug4j.common.daemon.Debug4jCommand;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -18,6 +19,11 @@ public class Debug4jProperties {
      * 是否启动代理
      */
     private Boolean proxy = true;
+
+    /**
+     * 重启模式
+     */
+    private Debug4jCommand.ReloadMode reloadMode = Debug4jCommand.ReloadMode.Restart;
 
     /**
      * 应用名称

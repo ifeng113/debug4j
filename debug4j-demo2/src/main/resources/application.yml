@@ -7,6 +7,6 @@ spring:
 
 debug4j:
   package-name: com.k4ln
-  host: 124.71.163.140
+  host: 127.0.0.1
   port: 7988
   key: k4ln
