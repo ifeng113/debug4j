@@ -3,6 +3,7 @@ package com.k4ln.debug4j.core.attach.jvm;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson2.JSON;
 import com.k4ln.debug4j.common.daemon.Debug4jCommand;
+import com.k4ln.debug4j.common.utils.StringUtils;
 import com.k4ln.debug4j.core.Debugger;
 import lombok.extern.slf4j.Slf4j;
 
@@ -10,6 +11,7 @@ import java.io.File;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 public class Debug4jProcessOperator {
@@ -24,17 +26,24 @@ public class Debug4jProcessOperator {
     /**
      * 当前进程重载模式
      */
+    public static synchronized void reload() {
+        if (StrUtil.isBlank(Debugger.getDebug4jCommand().getRootUniqueId())      // 仅支持非根节点进程
+                && Debugger.getDebug4jCommand().getReloadMode().equals(Debug4jCommand.ReloadMode.Reload)) {
+            Debugger.getDebug4jCommand().getReloadCloseHandler().accept(null);
+            Debugger.getDebug4jCommand().getReloadStartHandler().accept(null);
+        }
+    }
 
 
     /**
      * 新建子进程重启
      */
     public static synchronized void restart() {
-        if (StrUtil.isBlank(Debugger.getDebug4jCommand().getRootUniqueId())     // 仅支持根节点进程
+        if (StrUtil.isBlank(Debugger.getDebug4jCommand().getRootUniqueId())         // 仅支持根节点进程
                 && Debugger.getDebug4jCommand().getReloadMode().equals(Debug4jCommand.ReloadMode.Restart)) {
             try {
                 if (processBuilder == null) {
-                    Debugger.getDebug4jCommand().getReloadHandler().accept(null);
+                    Debugger.getDebug4jCommand().getReloadCloseHandler().accept(null);
                 }
                 if (process != null && process.isAlive()) {
                     process.destroy();
@@ -57,12 +66,21 @@ public class Debug4jProcessOperator {
         List<String> command = new ArrayList<>();
         String javaBin = ProcessHandle.current().info().command()
                 .orElseGet(() -> System.getProperty("java.home") + File.separator + "bin" + File.separator + "java");
-        List<String> jvmArgs = ManagementFactory.getRuntimeMXBean().getInputArguments();
         command.add(javaBin);
-        if (jvmArgs != null && !jvmArgs.isEmpty()) {
-            // fixme: remove -agentlib:jdwp
-            log.info("jvmArgs: {}", JSON.toJSONString(jvmArgs));
-            command.addAll(jvmArgs.stream().filter(e -> !e.startsWith("-agentlib:jdwp")).toList());
+        List<String> originalAllArgs = ManagementFactory.getRuntimeMXBean().getInputArguments();
+        if (originalAllArgs != null && !originalAllArgs.isEmpty()) {
+            log.info("originalAllArgs: {}", JSON.toJSONString(originalAllArgs));
+            Optional<String> any = originalAllArgs.stream().filter(e -> e.startsWith("-agentlib:jdwp")).findAny();
+            if (any.isPresent()) {
+                String port = StringUtils.extractPort(any.get());
+                if (StrUtil.isNotBlank(port)) {
+                    String newJdwpArg = any.get().replace(port, String.valueOf(Integer.parseInt(port) + 1));
+                    newJdwpArg = newJdwpArg.replace("server=n", "server=y");
+                    newJdwpArg = newJdwpArg.replace("suspend=y", "suspend=n");
+                    command.add(newJdwpArg);
+                }
+            }
+            command.addAll(originalAllArgs.stream().filter(e -> !e.startsWith("-agentlib:jdwp")).toList());
         }
         if (StrUtil.isNotBlank(Debugger.getDebug4jCommand().getJarPath())) {
             command.add("-jar");
@@ -78,6 +96,7 @@ public class Debug4jProcessOperator {
         String rootUniqueId = StrUtil.isNotBlank(Debugger.getDebug4jCommand().getRootUniqueId()) ?
                 Debugger.getDebug4jCommand().getRootUniqueId() : Debugger.getCommandInfoMessage().getUniqueId();
         command.add("--debug4j-root-uniqueId=" + rootUniqueId);
+        log.info("newCommand:{}", JSON.toJSONString(command));
         return command;
     }
 

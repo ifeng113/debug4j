@@ -13,7 +13,7 @@ import org.springframework.boot.web.servlet.context.AnnotationConfigServletWebSe
 import org.springframework.context.ApplicationContext;
 import org.springframework.core.env.Environment;
 
-import java.util.Arrays;
+import static com.k4ln.debug4j.common.daemon.Debug4jCommand.loadDebug4jCommand;
 
 @Slf4j
 @ConditionalOnProperty(prefix = "debug4j", value = "enable", matchIfMissing = true)
@@ -27,52 +27,19 @@ public class Debug4jAutoConfiguration {
         if (StrUtil.isBlank(debug4jProperties.getApplication())) {
             debug4jProperties.setApplication(applicationName);
         }
-        Debug4jCommand debug4jCommand = getDebug4jCommand(args, debug4jProperties);
-        debug4jCommand.setReloadHandler(h -> {
+        Debug4jCommand debug4jCommand = loadDebug4jCommand(args.getSourceArgs(), debug4jProperties.getReloadMode());
+        debug4jCommand.setReloadCloseHandler(h -> {
             ApplicationContext applicationContext = SpringUtil.getApplicationContext();
             if (applicationContext != null && ((AnnotationConfigServletWebServerApplicationContext) applicationContext).isActive()) {
                 SpringApplication.exit(applicationContext, () -> 0);
             }
         });
+        debug4jCommand.setReloadStartHandler(h -> SpringApplication.run(debug4jCommand.getCls(), args.getSourceArgs()));
         if (StrUtil.isNotBlank(debug4jCommand.getRootUniqueId())) {
             debug4jProperties.setProxy(false);
         }
         Debug4jDaemon.start(debug4jProperties.getProxy(), debug4jProperties.getApplication(), debug4jProperties.getPackageName(),
                 debug4jProperties.getHost(), debug4jProperties.getPort(), debug4jProperties.getKey(), debug4jCommand);
-    }
-
-    private static Debug4jCommand getDebug4jCommand(ApplicationArguments args, Debug4jProperties debug4jProperties) {
-        String[] sourceArgs = args.getSourceArgs();
-        String rootUniqueId = null;
-        for (String sourceArg : sourceArgs) {
-            if (sourceArg.contains("--debug4j-root-uniqueId")) {
-                rootUniqueId = sourceArg.split("=")[1];
-            }
-        }
-        String command = System.getProperty("sun.java.command");
-        if (command != null && !command.startsWith("org.springframework.boot.loader")) {
-            command = command.split(" ")[0];
-        }
-        String jarPath = null;
-        Class<?> cls = null;
-        if (command != null) {
-            if (command.endsWith(".jar")) {
-                jarPath = command;
-            } else {
-                try {
-                    cls = Class.forName(command);
-                } catch (ClassNotFoundException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-        return Debug4jCommand.builder()
-                .reloadMode(debug4jProperties.getReloadMode())
-                .originalArgs(Arrays.asList(args.getSourceArgs()))
-                .jarPath(jarPath)
-                .cls(cls)
-                .rootUniqueId(rootUniqueId)
-                .build();
     }
 
 }
