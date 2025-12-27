@@ -20,6 +20,7 @@ public class ResourceClassLoader<T extends Resource> extends SecureClassLoader {
 
     @Getter
     private final Map<String, T> resourceMap;
+
     /**
      * 缓存已经加载的类
      */

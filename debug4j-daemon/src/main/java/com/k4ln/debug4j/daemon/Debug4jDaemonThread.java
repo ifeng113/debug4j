@@ -90,8 +90,6 @@ public class Debug4jDaemonThread implements Runnable {
         if (ArrayUtil.isEmpty(cmds)) {
             throw new NullPointerException("Command is empty !");
         }
-
-        // 单条命令的情况
         if (1 == cmds.length) {
             final String cmd = cmds[0];
             if (StrUtil.isBlank(cmd)) {
@@ -124,7 +122,6 @@ public class Debug4jDaemonThread implements Runnable {
                 case CharUtil.DOUBLE_QUOTES:
                     if (inWrap) {
                         if (c == stack.peek()) {
-                            //结束包装
                             stack.pop();
                             inWrap = false;
                         }
@@ -137,7 +134,6 @@ public class Debug4jDaemonThread implements Runnable {
                     break;
                 case CharUtil.SPACE:
                     if (inWrap) {
-                        // 处于包装内
                         cache.append(c);
                     } else {
                         cmds.add(cache.toString());
