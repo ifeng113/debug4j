@@ -58,6 +58,7 @@ public class Debug4jDaemon {
 
     /**
      * 装载参数
+     *
      * @param application
      * @param uniqueId
      * @param packageName
