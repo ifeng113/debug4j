@@ -25,12 +25,18 @@ public enum CommandTypeEnum {
     ATTACH_REQ_TASK_OPEN("0x0202", "请求开启任务"),
     ATTACH_REQ_TASK_CLOSE("0x0203", "请求关闭任务"),
 
+    ATTACH_REQ_PROCESS_ARG("0x0301", "请求进程参数"),
+    ATTACH_REQ_PROCESS_RELOAD("0x0302", "请求进程重启"),
+
+
     // client -> server
     ATTACH_RESP_CLASS_ALL("0x0901", "响应所有类"),
     ATTACH_RESP_CLASS_SOURCE("0x0902", "响应类源码"),
     ATTACH_RESP_CLASS_SOURCE_LINE("0x0903", "响应类源码"),
     ATTACH_RESP_TASK("0x0904", "响应任务列表"),
-    ATTACH_RESP_TASK_DETAILS("0x095", "响应任务详情"),
+    ATTACH_RESP_TASK_DETAILS("0x0905", "响应任务详情"),
+
+    ATTACH_RESP_PROCESS_ARG_DETAILS("0x0906", "响应进程详情"),
 
     ;
 

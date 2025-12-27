@@ -16,6 +16,7 @@ import com.k4ln.debug4j.core.Debugger;
 import com.k4ln.debug4j.core.attach.Debug4jAttachOperator;
 import com.k4ln.debug4j.core.attach.Debug4jWatcher;
 import com.k4ln.debug4j.core.attach.dto.MethodLineInfo;
+import com.k4ln.debug4j.core.attach.dto.ProcessArgsInfo;
 import com.k4ln.debug4j.core.attach.dto.SourceCodeInfo;
 import com.k4ln.debug4j.core.attach.jvm.Debug4jProcessOperator;
 import com.k4ln.debug4j.core.proxy.SocketTFProxyClient;
@@ -123,10 +124,6 @@ public class SocketClient {
                 Command command = JSON.parseObject(new String(data), Command.class);
                 if (command.getCommand().equals(CommandTypeEnum.LOG)) {
                     log.info(JSON.parseObject(JSON.toJSONString(command.getData()), CommandLogMessage.class).getContent());
-                    String content = JSON.parseObject(JSON.toJSONString(command.getData()), CommandLogMessage.class).getContent();
-                    if (content.contains("ping")) {
-                        Debug4jProcessOperator.restart();
-                    }
                 } else if (commandInfoMessage.getDebug4jMode().equals(Debug4jMode.process)) {
                     if (command.getCommand().equals(CommandTypeEnum.PROXY_OPEN)) {
                         CommandProxyMessage proxyMessage = JSON.parseObject(JSON.toJSONString(command.getData()), CommandProxyMessage.class);
@@ -141,7 +138,7 @@ public class SocketClient {
                     } else if (command.getCommand().equals(CommandTypeEnum.PROXY_CLOSE)) {
                         if (targetClients.containsKey(socketProtocol.getClientId())) {
                             SocketTFProxyClient tfProxyClient = targetClients.get(socketProtocol.getClientId());
-                            if (tfProxyClient != null && !tfProxyClient.getSession().isInvalid()) {
+                            if (tfProxyClient != null && tfProxyClient.getSession() != null && !tfProxyClient.getSession().isInvalid()) {
                                 tfProxyClient.getSession().close();
                             }
                             targetClients.remove(socketProtocol.getClientId());
@@ -195,6 +192,14 @@ public class SocketClient {
                         Debug4jAttachOperator.patchLine(Debugger.getInstrumentation(), attachReq.getClassName(), attachReq.getLineMethodName(), attachReq.getSourceCode(), attachReq.getLingNumber());
                         MethodLineInfo methodLineInfo = Debug4jAttachOperator.methodLine(Debugger.getInstrumentation(), attachReq.getClassName(), attachReq.getLineMethodName());
                         SocketProtocolUtil.sendMessage(session, HashUtil.fnvHash(attachReq.getReqId()), ProtocolTypeEnum.COMMAND, CommandAttachRespMessage.buildClassSourceLineRespMessage(attachReq.getReqId(), methodLineInfo.getSourceCode(), methodLineInfo.getLineNumbers()));
+                    } else if (command.getCommand().equals(CommandTypeEnum.ATTACH_REQ_PROCESS_ARG)) {
+                        CommandProcessReqMessage processReq = JSON.parseObject(JSON.toJSONString(command.getData()), CommandProcessReqMessage.class);
+                        ProcessArgsInfo processArgsInfo = Debug4jProcessOperator.getProcessArgsInfo();
+                        SocketProtocolUtil.sendMessage(session, HashUtil.fnvHash(processReq.getReqId()), ProtocolTypeEnum.COMMAND, CommandProcessRespMessage.buildCommandProcessRespMessage(processReq.getReqId(), processArgsInfo.getJvmArgs(), processArgsInfo.getProgramArgs(), processArgsInfo.getEnvs(), processArgsInfo.getJvmRuntimeInfo()));
+                    } else if (command.getCommand().equals(CommandTypeEnum.ATTACH_REQ_PROCESS_RELOAD)) {
+                        CommandProcessReqMessage processReq = JSON.parseObject(JSON.toJSONString(command.getData()), CommandProcessReqMessage.class);
+                        ProcessArgsInfo processArgsInfo = Debug4jProcessOperator.reload(processReq);
+                        SocketProtocolUtil.sendMessage(session, HashUtil.fnvHash(processReq.getReqId()), ProtocolTypeEnum.COMMAND, CommandProcessRespMessage.buildCommandProcessRespMessage(processReq.getReqId(), processArgsInfo.getJvmArgs(), processArgsInfo.getProgramArgs(), processArgsInfo.getEnvs(), processArgsInfo.getJvmRuntimeInfo()));
                     }
                 }
             }

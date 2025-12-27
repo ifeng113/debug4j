@@ -1,6 +1,7 @@
 package com.k4ln.debug4j.daemon;
 
 import cn.hutool.core.io.IORuntimeException;
+import cn.hutool.core.net.NetUtil;
 import cn.hutool.core.text.StrBuilder;
 import cn.hutool.core.util.*;
 import com.k4ln.debug4j.common.daemon.Debug4jArgs;
@@ -21,11 +22,14 @@ public class Debug4jDaemonThread implements Runnable {
 
     private final Debug4jArgs debug4jArgs;
 
+    private final boolean developer;
+
     @Getter
     private Process process;
 
-    public Debug4jDaemonThread(Debug4jArgs debug4jArgs) {
+    public Debug4jDaemonThread(Debug4jArgs debug4jArgs, boolean developer) {
         this.debug4jArgs = debug4jArgs;
+        this.developer = developer;
     }
 
     @Override
@@ -40,7 +44,13 @@ public class Debug4jDaemonThread implements Runnable {
                 if (!debug4jBootJarFile.exists()) {
                     throw new IllegalStateException("can not find debug4j-boot.jar under tempDebug4jDir: " + tempDebug4jDir);
                 }
-                process = exec("java", "-Dfile.encoding=UTF-8", "-jar", debug4jBootJarFile.getAbsolutePath(), debug4jArgs.toString());
+                if (developer) {
+                    Integer bootJdwpPort = NetUtil.getUsableLocalPort();
+                    log.info("Debug4j Boot jdwp transport dt_socket at address: {}", bootJdwpPort);
+                    process = exec("java", "-Dfile.encoding=UTF-8", "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:" + bootJdwpPort, "-jar", debug4jBootJarFile.getAbsolutePath(), debug4jArgs.toString());
+                } else {
+                    process = exec("java", "-Dfile.encoding=UTF-8", "-jar", debug4jBootJarFile.getAbsolutePath(), debug4jArgs.toString());
+                }
                 log.info("Debug4j Boot start with pid:{}", process.pid());
             } catch (IOException e) {
                 e.printStackTrace();

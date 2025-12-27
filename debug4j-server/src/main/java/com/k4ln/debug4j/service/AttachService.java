@@ -5,10 +5,8 @@ import cn.hutool.core.codec.Base64Encoder;
 import cn.hutool.core.lang.UUID;
 import cn.hutool.core.util.HashUtil;
 import cn.hutool.core.util.StrUtil;
-import com.k4ln.debug4j.common.daemon.Debug4jMode;
 import com.k4ln.debug4j.common.protocol.command.message.*;
 import com.k4ln.debug4j.common.protocol.socket.ProtocolTypeEnum;
-import com.k4ln.debug4j.common.response.exception.abort.BusinessAbort;
 import com.k4ln.debug4j.common.utils.FileUtils;
 import com.k4ln.debug4j.controller.vo.*;
 import com.k4ln.debug4j.service.aop.CodeLock;
@@ -34,26 +32,10 @@ public class AttachService {
     SocketServer socketServer;
 
     /**
-     * 客户端session检查
-     *
-     * @param clientSessionId
-     */
-    private void clientSessionCheck(String clientSessionId) {
-        if (!socketServer.getSessionMap().containsKey(clientSessionId)) {
-            throw new BusinessAbort("not found remote client");
-        } else {
-            CommandInfoMessage commandInfoMessage = socketServer.getInfoMessageMap().get(clientSessionId);
-            if (commandInfoMessage == null || commandInfoMessage.getDebug4jMode().equals(Debug4jMode.process)) {
-                throw new BusinessAbort("not found attach client");
-            }
-        }
-    }
-
-    /**
      * ping客户端
      */
     public void ping(AttachPingReqVO attachPingReqVO) {
-        clientSessionCheck(attachPingReqVO.getClientSessionId());
+        attachPingReqVO.setClientSessionId(attachHub.clientSessionCheck(attachPingReqVO.getClientSessionId(), socketServer));
         CommandInfoMessage commandInfoMessage = socketServer.getInfoMessageMap().get(attachPingReqVO.getClientSessionId());
         String reqId = UUID.fastUUID().toString(true);
         socketServer.sendMessage(attachPingReqVO.getClientSessionId(), HashUtil.fnvHash(reqId), ProtocolTypeEnum.COMMAND,
@@ -67,7 +49,7 @@ public class AttachService {
      * @return
      */
     public List<String> getClassNames(AttachClassAllReqVO attachClassAllReqVO) {
-        clientSessionCheck(attachClassAllReqVO.getClientSessionId());
+        attachClassAllReqVO.setClientSessionId(attachHub.clientSessionCheck(attachClassAllReqVO.getClientSessionId(), socketServer));
         String reqId = UUID.fastUUID().toString(true);
         CommandAttachRespMessage attachResp = attachHub.syncResult(reqId, () ->
                         socketServer.sendMessage(attachClassAllReqVO.getClientSessionId(), HashUtil.fnvHash(reqId), ProtocolTypeEnum.COMMAND,
@@ -86,7 +68,7 @@ public class AttachService {
      * @return
      */
     public AttachClassSourceRespVO getClassSource(AttachClassSourceReqVO attachClassSourceReqVO) {
-        clientSessionCheck(attachClassSourceReqVO.getClientSessionId());
+        attachClassSourceReqVO.setClientSessionId(attachHub.clientSessionCheck(attachClassSourceReqVO.getClientSessionId(), socketServer));
         String reqId = UUID.fastUUID().toString(true);
         CommandAttachRespMessage attachResp = attachHub.syncResult(reqId, () ->
                         socketServer.sendMessage(attachClassSourceReqVO.getClientSessionId(), HashUtil.fnvHash(reqId), ProtocolTypeEnum.COMMAND,
@@ -108,7 +90,7 @@ public class AttachService {
      * @return
      */
     public List<AttachTaskRespVO> getTask(AttachTaskReqVO attachTaskReqVO) {
-        clientSessionCheck(attachTaskReqVO.getClientSessionId());
+        attachTaskReqVO.setClientSessionId(attachHub.clientSessionCheck(attachTaskReqVO.getClientSessionId(), socketServer));
         String reqId = UUID.fastUUID().toString(true);
         CommandTaskRespMessage attachResp = attachHub.syncResult(reqId, () ->
                         socketServer.sendMessage(attachTaskReqVO.getClientSessionId(), HashUtil.fnvHash(reqId), ProtocolTypeEnum.COMMAND,
@@ -127,7 +109,7 @@ public class AttachService {
      * @return
      */
     public List<AttachTaskRespVO> openTask(AttachTaskOpenReqVO openReqVO) {
-        clientSessionCheck(openReqVO.getClientSessionId());
+        openReqVO.setClientSessionId(attachHub.clientSessionCheck(openReqVO.getClientSessionId(), socketServer));
         String reqId = UUID.fastUUID().toString(true);
         CommandTaskRespMessage attachResp = attachHub.syncResult(reqId, () ->
                         socketServer.sendMessage(openReqVO.getClientSessionId(), HashUtil.fnvHash(reqId), ProtocolTypeEnum.COMMAND,
@@ -146,7 +128,7 @@ public class AttachService {
      * @return
      */
     public List<AttachTaskRespVO> closeTask(AttachTaskCloseReqVO closeReqVO) {
-        clientSessionCheck(closeReqVO.getClientSessionId());
+        closeReqVO.setClientSessionId(attachHub.clientSessionCheck(closeReqVO.getClientSessionId(), socketServer));
         String reqId = UUID.fastUUID().toString(true);
         CommandTaskRespMessage attachResp = attachHub.syncResult(reqId, () ->
                         socketServer.sendMessage(closeReqVO.getClientSessionId(), HashUtil.fnvHash(reqId), ProtocolTypeEnum.COMMAND,
@@ -167,7 +149,7 @@ public class AttachService {
      */
     @CodeLock(clientSessionId = "#sourceReloadReqVO.clientSessionId", className = "#sourceReloadReqVO.className")
     public AttachClassSourceRespVO sourceReload(AttachSourceReloadReqVO sourceReloadReqVO) {
-        clientSessionCheck(sourceReloadReqVO.getClientSessionId());
+        sourceReloadReqVO.setClientSessionId(attachHub.clientSessionCheck(sourceReloadReqVO.getClientSessionId(), socketServer));
         String reqId = UUID.fastUUID().toString(true);
         CommandAttachRespMessage attachResp = attachHub.syncResult(reqId, () ->
                         socketServer.sendMessage(sourceReloadReqVO.getClientSessionId(), HashUtil.fnvHash(reqId), ProtocolTypeEnum.COMMAND,
@@ -192,7 +174,7 @@ public class AttachService {
      */
     @CodeLock(clientSessionId = "#clientSessionId", className = "#className")
     public AttachClassSourceRespVO classReload(MultipartFile classFile, String clientSessionId, String className) {
-        clientSessionCheck(clientSessionId);
+        clientSessionId = attachHub.clientSessionCheck(clientSessionId, socketServer);
         if (classFile != null && StrUtil.isNotBlank(classFile.getOriginalFilename())) {
             try {
                 File file = new File(FileUtils.createTempDir(), classFile.getOriginalFilename());
@@ -200,8 +182,9 @@ public class AttachService {
                 byte[] bytes = Files.readAllBytes(file.toPath());
                 String byteCode = Base64Encoder.encode(bytes);
                 String reqId = UUID.fastUUID().toString(true);
+                String finalClientSessionId = clientSessionId;
                 CommandAttachRespMessage attachResp = attachHub.syncResult(reqId, () ->
-                                socketServer.sendMessage(clientSessionId, HashUtil.fnvHash(reqId), ProtocolTypeEnum.COMMAND,
+                                socketServer.sendMessage(finalClientSessionId, HashUtil.fnvHash(reqId), ProtocolTypeEnum.COMMAND,
                                         CommandAttachReqMessage.buildClassReloadMessage(reqId, className, byteCode)),
                         CommandAttachRespMessage.class);
                 file.deleteOnExit();
@@ -226,7 +209,7 @@ public class AttachService {
      */
     @CodeLock(clientSessionId = "#classRestoreReqVO.clientSessionId", className = "#classRestoreReqVO.className")
     public AttachClassSourceRespVO classRestore(AttachClassRestoreReqVO classRestoreReqVO) {
-        clientSessionCheck(classRestoreReqVO.getClientSessionId());
+        classRestoreReqVO.setClientSessionId(attachHub.clientSessionCheck(classRestoreReqVO.getClientSessionId(), socketServer));
         String reqId = UUID.fastUUID().toString(true);
         CommandAttachRespMessage attachResp = attachHub.syncResult(reqId, () ->
                         socketServer.sendMessage(classRestoreReqVO.getClientSessionId(), HashUtil.fnvHash(reqId), ProtocolTypeEnum.COMMAND,
@@ -249,7 +232,7 @@ public class AttachService {
      */
     @CodeLock(clientSessionId = "#sourceLineReqVO.clientSessionId", className = "#sourceLineReqVO.className")
     public AttachClassSourceLineRespVO getClassSourceMethodLine(AttachClassSourceLineReqVO sourceLineReqVO) {
-        clientSessionCheck(sourceLineReqVO.getClientSessionId());
+        sourceLineReqVO.setClientSessionId(attachHub.clientSessionCheck(sourceLineReqVO.getClientSessionId(), socketServer));
         String reqId = UUID.fastUUID().toString(true);
         CommandAttachRespMessage attachResp = attachHub.syncResult(reqId, () ->
                         socketServer.sendMessage(sourceLineReqVO.getClientSessionId(), HashUtil.fnvHash(reqId), ProtocolTypeEnum.COMMAND,
@@ -271,7 +254,7 @@ public class AttachService {
      * @return
      */
     public AttachClassSourceLineRespVO patchMethodLine(AttachClassPathLineReqVO pathLineReqVO) {
-        clientSessionCheck(pathLineReqVO.getClientSessionId());
+        pathLineReqVO.setClientSessionId(attachHub.clientSessionCheck(pathLineReqVO.getClientSessionId(), socketServer));
         String reqId = UUID.fastUUID().toString(true);
         String sourceCode = "{" + pathLineReqVO.getSourceCode() + ";" +
                 "com.k4ln.debug4j.common.daemon.Debug4jLine.tag(" + pathLineReqVO.getLineNumber() + ");}";

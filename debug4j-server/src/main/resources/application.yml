@@ -11,6 +11,7 @@ spring:
 debug4j:
   key: k4ln
   socket-port: 7988
+  developer: true
 
 sa-token:
   http-basic: 'k4ln:123456'

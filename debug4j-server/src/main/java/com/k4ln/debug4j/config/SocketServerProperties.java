@@ -20,6 +20,11 @@ public class SocketServerProperties {
     private Integer socketPort;
 
     /**
+     * 开发者模式
+     */
+    private Boolean developer = false;
+
+    /**
      * 最小代理端口
      */
     private Integer minProxyPort = 33000;

@@ -1,5 +1,6 @@
 package com.k4ln.debug4j.controller.vo;
 
+import com.k4ln.debug4j.common.daemon.Debug4jCommand;
 import com.k4ln.debug4j.common.daemon.Debug4jMode;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -62,4 +63,8 @@ public class ManageClientRespVO {
      */
     private String rootUniqueId;
 
+    /**
+     * 重载模式
+     */
+    private Debug4jCommand.ReloadMode reloadMode;
 }

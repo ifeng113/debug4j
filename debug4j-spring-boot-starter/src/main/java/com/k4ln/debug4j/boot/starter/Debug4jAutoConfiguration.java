@@ -34,12 +34,9 @@ public class Debug4jAutoConfiguration {
                 SpringApplication.exit(applicationContext, () -> 0);
             }
         });
-        debug4jCommand.setReloadStartHandler(h -> SpringApplication.run(debug4jCommand.getCls(), args.getSourceArgs()));
-        if (StrUtil.isNotBlank(debug4jCommand.getRootUniqueId())) {
-            debug4jProperties.setProxy(false);
-        }
+        debug4jCommand.setReloadStartHandler(h -> SpringApplication.run(debug4jCommand.getCls(), h != null ? h.toArray(new String[0]) : args.getSourceArgs()));
         Debug4jDaemon.start(debug4jProperties.getProxy(), debug4jProperties.getApplication(), debug4jProperties.getPackageName(),
-                debug4jProperties.getHost(), debug4jProperties.getPort(), debug4jProperties.getKey(), debug4jCommand);
+                debug4jProperties.getHost(), debug4jProperties.getPort(), debug4jProperties.getKey(), debug4jCommand, debug4jProperties.getDeveloper());
     }
 
 }

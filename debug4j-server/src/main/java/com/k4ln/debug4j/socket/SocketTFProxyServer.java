@@ -1,6 +1,7 @@
 package com.k4ln.debug4j.socket;
 
 import cn.hutool.core.net.NetUtil;
+import com.alibaba.fastjson2.JSON;
 import com.k4ln.debug4j.common.protocol.command.CommandTypeEnum;
 import com.k4ln.debug4j.common.protocol.command.message.CommandProxyMessage;
 import com.k4ln.debug4j.common.protocol.socket.ProtocolTypeEnum;
@@ -81,12 +82,15 @@ public class SocketTFProxyServer {
                     sessionMap.put(session.getSessionID(), session);
                     log.info("TFProxy server clientId:{} connected", getSessionClientId(session));
                     try {
-                        if (allowNetworks(session.getRemoteAddress().getAddress().getHostAddress())) {
+                        String hostAddress = session.getRemoteAddress().getAddress().getHostAddress();
+                        if (allowNetworks(hostAddress)) {
                             socketServer.sendMessage(proxyReqVO.getClientSessionId(), getSessionClientId(session), ProtocolTypeEnum.COMMAND,
                                     CommandProxyMessage.buildCommandProxyMessage(CommandTypeEnum.PROXY_OPEN, proxyReqVO.getRemoteHost(),
                                             proxyReqVO.getRemotePort()));
-                            clientOutletIps.put(session.getSessionID(), session.getRemoteAddress().getAddress().getHostAddress());
+                            clientOutletIps.put(session.getSessionID(), hostAddress);
                             return;
+                        } else {
+                            log.info("TFProxy clientIp:{} not in allowNetworks:{}", hostAddress, JSON.toJSONString(proxyReqVO.getAllowNetworks()));
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -109,8 +113,12 @@ public class SocketTFProxyServer {
             private boolean allowNetworks(String hostAddress) {
                 List<String> allowNetworks = proxyReqVO.getAllowNetworks();
                 for (String allowNetwork : allowNetworks) {
-                    if (NetUtil.isInRange(hostAddress, allowNetwork)) {
-                        return true;
+                    try {
+                        if (NetUtil.isInRange(hostAddress, allowNetwork)) {
+                            return true;
+                        }
+                    } catch (Exception e) {
+                        log.error("please check allowNetworks config with error:{}", e.getMessage());
                     }
                 }
                 return false;

@@ -3,12 +3,19 @@ package com.k4ln.debug4j.service;
 import cn.hutool.cache.CacheUtil;
 import cn.hutool.cache.impl.TimedCache;
 import com.alibaba.fastjson2.JSON;
+import com.k4ln.debug4j.common.daemon.Debug4jMode;
+import com.k4ln.debug4j.common.protocol.command.message.CommandInfoMessage;
+import com.k4ln.debug4j.common.response.exception.abort.BusinessAbort;
+import com.k4ln.debug4j.config.SocketServerProperties;
 import com.k4ln.debug4j.service.dto.AttachTaskEmitter;
+import com.k4ln.debug4j.socket.SocketServer;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
@@ -16,6 +23,9 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 @Component
 public class AttachHub {
+
+    @Resource
+    private SocketServerProperties serverProperties;
 
     /**
      * reqId -> 异步任务
@@ -30,6 +40,30 @@ public class AttachHub {
     public AttachHub() {
         // 仅过期移除触发
         attachTaskEmitters.setListener((key, cachedObject) -> cachedObject.forEach(e -> e.getSseEmitter().complete()));
+    }
+
+    /**
+     * 客户端session检查
+     *
+     * @param clientSessionId
+     */
+    public String clientSessionCheck(String clientSessionId, SocketServer socketServer) {
+        if (!socketServer.getSessionMap().containsKey(clientSessionId)) {
+            if (serverProperties.getDeveloper()) {
+                Optional<CommandInfoMessage> any = socketServer.getInfoMessageMap().values().stream()
+                        .filter(e -> e.getDebug4jMode().equals(Debug4jMode.thread)).findFirst();
+                if (any.isPresent()) {
+                    return any.get().getClientSessionId();
+                }
+            }
+            throw new BusinessAbort("not found remote client");
+        } else {
+            CommandInfoMessage commandInfoMessage = socketServer.getInfoMessageMap().get(clientSessionId);
+            if (commandInfoMessage == null || commandInfoMessage.getDebug4jMode().equals(Debug4jMode.process)) {
+                throw new BusinessAbort("not found [thread] client");
+            }
+        }
+        return clientSessionId;
     }
 
     /**

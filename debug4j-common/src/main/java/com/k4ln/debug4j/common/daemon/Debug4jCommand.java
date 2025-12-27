@@ -22,7 +22,7 @@ public class Debug4jCommand {
     /**
      * 重载启动处理器（Restart模式会忽略此处理器）
      */
-    private Consumer<?> reloadStartHandler;
+    private Consumer<List<String>> reloadStartHandler;
 
     /**
      * 重载关闭处理器
@@ -93,7 +93,7 @@ public class Debug4jCommand {
      */
     public enum ReloadMode {
         None,       // 不支持
-        Reload,     // 当前进程重启（支持程序参数修改，不支持jvm参数修改，如动态开启jdwp,gc等）
-        Restart,    // 新建子进程重启（支持程序参数修改，支持jvm参数修改，但如果原本存在jdwp的情况下，子进程的jdwp需重新链接）
+        Reload,     // 当前进程重启（支持程序参数、环境变量修改，不支持jvm参数修改，如动态开启jdwp,gc等）
+        Restart,    // 新建子进程重启（支持程序参数、环境变量修改，支持jvm参数修改，但如果原本存在jdwp的情况下，子进程的jdwp需重新链接）
     }
 }

@@ -20,8 +20,6 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 
-import static cn.dev33.satoken.httpauth.basic.SaHttpBasicTemplate.DEFAULT_REALM;
-
 /**
  * 增强接口类
  *

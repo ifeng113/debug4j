@@ -10,3 +10,4 @@ debug4j:
   host: 127.0.0.1
   port: 7988
   key: k4ln
+  developer: true

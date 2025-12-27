@@ -2,7 +2,7 @@ package com.k4ln.debug4j.service;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.net.NetUtil;
-import cn.hutool.extra.servlet.JakartaServletUtil;
+import cn.hutool.core.util.StrUtil;
 import com.k4ln.debug4j.common.daemon.Debug4jMode;
 import com.k4ln.debug4j.common.protocol.command.message.CommandInfoMessage;
 import com.k4ln.debug4j.common.response.exception.BaseException;
@@ -20,10 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.net.BindException;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
@@ -80,9 +77,8 @@ public class ProxyService {
                     proxyReqVO.setServerPort(NetUtil.getUsableLocalPort(serverProperties.getMinProxyPort(), serverProperties.getMaxProxyPort()));
                 }
                 if (proxyReqVO.getAllowNetworks() == null || proxyReqVO.getAllowNetworks().isEmpty()) {
-                    String clientIP = JakartaServletUtil.getClientIP(httpServletRequest);
                     List<String> allowNetworks = new ArrayList<>();
-                    allowNetworks.add(clientIP + "/32");
+                    allowNetworks.add("0.0.0.0/0");
                     proxyReqVO.setAllowNetworks(allowNetworks);
                 }
                 SocketTFProxyServer proxyServer = new SocketTFProxyServer(proxyReqVO.getServerPort(), proxyReqVO, socketServer);
@@ -104,12 +100,17 @@ public class ProxyService {
      * @param proxyReqVO
      */
     private void clientSessionCheck(ProxyReqVO proxyReqVO) {
-        if (!socketServer.getSessionMap().containsKey(proxyReqVO.getClientSessionId())) {
+        if (StrUtil.isBlank(proxyReqVO.getClientSessionId() ) || !socketServer.getSessionMap().containsKey(proxyReqVO.getClientSessionId())) {
+            if (serverProperties.getDeveloper()) {
+                Optional<CommandInfoMessage> any = socketServer.getInfoMessageMap().values().stream()
+                        .filter(e -> e.getDebug4jMode().equals(Debug4jMode.process)).findFirst();
+                any.ifPresent(commandInfoMessage -> proxyReqVO.setClientSessionId(commandInfoMessage.getClientSessionId()));
+            }
             throw new BusinessAbort("not found remote client");
         } else {
             CommandInfoMessage commandInfoMessage = socketServer.getInfoMessageMap().get(proxyReqVO.getClientSessionId());
             if (commandInfoMessage == null || commandInfoMessage.getDebug4jMode().equals(Debug4jMode.thread)) {
-                throw new BusinessAbort("not found proxy client");
+                throw new BusinessAbort("not found [proxy] client");
             }
         }
     }

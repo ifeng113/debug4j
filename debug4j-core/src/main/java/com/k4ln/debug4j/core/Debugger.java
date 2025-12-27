@@ -77,6 +77,7 @@ public class Debugger {
                 .jdwpPort(jdwpPort)
                 .debug4jMode(debug4jMode)
                 .rootUniqueId(command != null ? command.getRootUniqueId() : null)
+                .reloadMode(command != null ? command.getReloadMode() : Debug4jCommand.ReloadMode.None)
                 .build();
         scheduledExecutor = ThreadUtil.createScheduledExecutor(10);
         scheduledExecutor.scheduleWithFixedDelay(buildKeepAliveRunnable(host, port, key), 0, 10, TimeUnit.SECONDS);

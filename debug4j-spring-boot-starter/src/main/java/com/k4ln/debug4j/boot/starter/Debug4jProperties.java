@@ -26,6 +26,11 @@ public class Debug4jProperties {
     private Debug4jCommand.ReloadMode reloadMode = Debug4jCommand.ReloadMode.Restart;
 
     /**
+     * 开发者模式
+     */
+    private Boolean developer = false;
+
+    /**
      * 应用名称
      */
     private String application;

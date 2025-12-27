@@ -152,6 +152,10 @@ public class SocketServer {
                             String jsonString = JSON.toJSONString(command.getData());
                             CommandTaskTailRespMessage taskResp = JSON.parseObject(jsonString, CommandTaskTailRespMessage.class);
                             attachHub.pushSseEmitter(session.getSessionID() + "@" + taskResp.getFilePath(), taskResp.getLine());
+                        } else if (command.getCommand().equals(CommandTypeEnum.ATTACH_RESP_PROCESS_ARG_DETAILS)) {
+                            String jsonString = JSON.toJSONString(command.getData());
+                            CommandProcessRespMessage processResp = JSON.parseObject(jsonString, CommandProcessRespMessage.class);
+                            attachHub.pushResult(processResp.getReqId(), jsonString);
                         }
                     }
                     case PROXY -> callbackMessage(protocol.getClientId(), data);

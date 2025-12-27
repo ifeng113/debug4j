@@ -1,5 +1,6 @@
 package com.k4ln.debug4j.common.protocol.command.message;
 
+import com.k4ln.debug4j.common.daemon.Debug4jCommand;
 import com.k4ln.debug4j.common.daemon.Debug4jMode;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -66,5 +67,11 @@ public class CommandInfoMessage {
      * 根唯一ID
      */
     private String rootUniqueId;
+
+    /**
+     * 重载模式
+     */
+    private Debug4jCommand.ReloadMode reloadMode;
+
 
 }

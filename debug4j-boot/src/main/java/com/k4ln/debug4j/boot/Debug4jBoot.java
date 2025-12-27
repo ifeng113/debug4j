@@ -5,6 +5,7 @@ import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson2.JSON;
 import com.k4ln.debug4j.common.daemon.Debug4jArgs;
 import com.k4ln.debug4j.common.daemon.Debug4jMode;
+import com.k4ln.debug4j.common.utils.SystemUtils;
 import com.k4ln.debug4j.core.Debugger;
 import lombok.extern.slf4j.Slf4j;
 
@@ -23,8 +24,8 @@ public class Debug4jBoot {
      */
     public static void main(String[] args) {
         log.info("args:{}", JSON.toJSONString(args));
-        String arg = args[0];
-        if (StrUtil.isNotBlank(arg)) {
+        if (args.length > 0 && StrUtil.isNotBlank(args[0])) {
+            String arg = args[0];
             Debug4jArgs debug4jArgs = recoverDebugArgs(arg);
             if (debug4jArgs != null) {
                 RuntimeUtil.addShutdownHook(() -> log.error("Debug4j Boot destroyed"));
@@ -90,7 +91,7 @@ public class Debug4jBoot {
 
         Debugger.start(debug4jArgs.getApplication(), debug4jArgs.getUniqueId(), debug4jArgs.getPackageName(),
                 debug4jArgs.getHost(), debug4jArgs.getPort(), debug4jArgs.getKey(), debug4jArgs.getPid(),
-                debug4jArgs.getJdwpPort(), Debug4jMode.process);
+                SystemUtils.getJdwpPort(), Debug4jMode.process);
 
         boolean bootRun = true;
         int times = 0;
