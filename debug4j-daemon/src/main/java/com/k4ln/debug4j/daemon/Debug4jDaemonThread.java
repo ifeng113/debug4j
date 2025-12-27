@@ -44,6 +44,7 @@ public class Debug4jDaemonThread implements Runnable {
                 if (!debug4jBootJarFile.exists()) {
                     throw new IllegalStateException("can not find debug4j-boot.jar under tempDebug4jDir: " + tempDebug4jDir);
                 }
+
                 if (developer) {
                     Integer bootJdwpPort = NetUtil.getUsableLocalPort();
                     log.info("Debug4j Boot jdwp transport dt_socket at address: {}", bootJdwpPort);

@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 public class Debug4jArgs {
 
     /**
-     * 进程ID
+     * 进程ID（仅打印）
      */
     private Long pid;
 
@@ -22,7 +22,7 @@ public class Debug4jArgs {
     private String threadName;
 
     /**
-     * 远程调试端口
+     * 远程调试端口（仅打印）
      */
     private Integer jdwpPort;
 

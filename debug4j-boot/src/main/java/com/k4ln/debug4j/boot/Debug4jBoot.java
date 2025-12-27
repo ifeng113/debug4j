@@ -90,7 +90,7 @@ public class Debug4jBoot {
         }
 
         Debugger.start(debug4jArgs.getApplication(), debug4jArgs.getUniqueId(), debug4jArgs.getPackageName(),
-                debug4jArgs.getHost(), debug4jArgs.getPort(), debug4jArgs.getKey(), debug4jArgs.getPid(),
+                debug4jArgs.getHost(), debug4jArgs.getPort(), debug4jArgs.getKey(), ProcessHandle.current().pid(),
                 SystemUtils.getJdwpPort(), Debug4jMode.process);
 
         boolean bootRun = true;
@@ -101,7 +101,7 @@ public class Debug4jBoot {
                         .map(ProcessHandle::isAlive)
                         .orElse(false);
                 if ((times % LOG_FREQUENCY) == 0) {
-                    log.info("checkAppProcess pid:{} appProcessId:{} isAlive:{}", ProcessHandle.current().pid(), debug4jArgs.getPid(), isAlive);
+                    log.info("Debug4j Boot checker pid:{} app pid:{} isAlive:{}", ProcessHandle.current().pid(), debug4jArgs.getPid(), isAlive);
                 }
 
                 times++;
@@ -114,19 +114,19 @@ public class Debug4jBoot {
                     try {
                         Thread.sleep(LOG_INTERVAL);
                     } catch (Exception e) {
-                        log.info("checkAppProcess sleep error:{}", e.getMessage());
+                        log.info("Debug4j Boot checker sleep error:{}", e.getMessage());
                         e.printStackTrace();
                     }
                 }
             } catch (Exception e) {
-                log.error("checkAppProcess while error:{}", e.getMessage());
+                log.error("Debug4j Boot checker while error:{}", e.getMessage());
                 e.printStackTrace();
             }
         }
 
         Debugger.shutdown();
 
-        log.info("checkAppProcess break with Debug4j Boot shutdown");
+        log.info("Debug4j Boot checker break with Debug4j Boot shutdown");
 
         System.exit(0);
     }
