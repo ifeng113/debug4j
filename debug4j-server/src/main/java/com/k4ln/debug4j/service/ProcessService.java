@@ -8,6 +8,7 @@ import com.k4ln.debug4j.common.protocol.command.message.CommandProcessRespMessag
 import com.k4ln.debug4j.common.protocol.socket.ProtocolTypeEnum;
 import com.k4ln.debug4j.controller.vo.ProcessArgReqVO;
 import com.k4ln.debug4j.controller.vo.ProcessArgRespVO;
+import com.k4ln.debug4j.controller.vo.ProcessReloadReqVO;
 import com.k4ln.debug4j.socket.SocketServer;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -32,8 +33,31 @@ public class ProcessService {
         processArgReqVO.setClientSessionId(attachHub.clientSessionCheck(processArgReqVO.getClientSessionId(), socketServer));
         String reqId = UUID.fastUUID().toString(true);
         CommandProcessRespMessage processResp = attachHub.syncResult(reqId, () ->
-                        socketServer.sendMessage(processArgReqVO.getClientSessionId(), HashUtil.fnvHash(reqId), ProtocolTypeEnum.COMMAND,
-                                CommandProcessReqMessage.buildCommandProcessArgReqMessage(reqId)), CommandProcessRespMessage.class);
+                socketServer.sendMessage(processArgReqVO.getClientSessionId(), HashUtil.fnvHash(reqId), ProtocolTypeEnum.COMMAND,
+                        CommandProcessReqMessage.buildCommandProcessArgReqMessage(reqId)), CommandProcessRespMessage.class);
+        if (processResp != null) {
+            return BeanUtil.toBean(processResp, ProcessArgRespVO.class);
+        }
+        return null;
+    }
+
+    /**
+     * 重启进程
+     *
+     * @param processReloadReqVO
+     * @return
+     */
+    public ProcessArgRespVO reload(ProcessReloadReqVO processReloadReqVO) {
+        processReloadReqVO.setClientSessionId(attachHub.clientSessionCheck(processReloadReqVO.getClientSessionId(), socketServer));
+        String reqId = UUID.fastUUID().toString(true);
+        CommandProcessRespMessage processResp = attachHub.syncResult(reqId, () ->
+                        socketServer.sendMessage(processReloadReqVO.getClientSessionId(), HashUtil.fnvHash(reqId), ProtocolTypeEnum.COMMAND,
+                                CommandProcessReqMessage.buildCommandProcessReloadReqMessage(
+                                        reqId, processReloadReqVO.getRemoveJvmArgs(), processReloadReqVO.getAddJvmArgs(),
+                                        processReloadReqVO.getRemoveProgramArgs(), processReloadReqVO.getAddProgramArgs(),
+                                        processReloadReqVO.getRemoveProperties(), processReloadReqVO.getAddProperties(),
+                                        processReloadReqVO.getCoverEnvs())),
+                CommandProcessRespMessage.class);
         if (processResp != null) {
             return BeanUtil.toBean(processResp, ProcessArgRespVO.class);
         }

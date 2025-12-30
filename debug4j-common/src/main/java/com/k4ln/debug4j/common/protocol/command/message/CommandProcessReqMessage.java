@@ -42,14 +42,19 @@ public class CommandProcessReqMessage {
     private List<String> addProgramArgs;
 
     /**
-     * 移除的环境变量
+     * 移除的系统属性
      */
-    private List<String> removeEnvs;
+    private List<String> removeProperties;
 
     /**
-     * 新增的程序参数
+     * 新增的系统属性
      */
-    private List<String> addEnvs;
+    private List<String> addProperties;
+
+    /**
+     * 覆盖的环境变量
+     */
+    private List<String> coverEnvs;
 
     public static byte[] buildCommandProcessArgReqMessage(String reqId) {
         return (JSON.toJSONString(Command.builder()
@@ -64,7 +69,8 @@ public class CommandProcessReqMessage {
     public static byte[] buildCommandProcessReloadReqMessage(String reqId,
                                                              List<String> removeJvmArgs, List<String> addJvmArgs,
                                                              List<String> removeProgramArgs, List<String> addProgramArgs,
-                                                             List<String> removeEnvs, List<String> addEnvs) {
+                                                             List<String> removeProperties, List<String> addProperties,
+                                                             List<String> coverEnvs) {
         return (JSON.toJSONString(Command.builder()
                 .command(CommandTypeEnum.ATTACH_REQ_PROCESS_RELOAD)
                 .data(CommandProcessReqMessage.builder()
@@ -73,8 +79,9 @@ public class CommandProcessReqMessage {
                         .addJvmArgs(addJvmArgs)
                         .removeProgramArgs(removeProgramArgs)
                         .addProgramArgs(addProgramArgs)
-                        .removeEnvs(removeEnvs)
-                        .addEnvs(addEnvs)
+                        .removeProperties(removeProperties)
+                        .addProperties(addProperties)
+                        .coverEnvs(coverEnvs)
                         .build())
                 .build())
         ).getBytes();

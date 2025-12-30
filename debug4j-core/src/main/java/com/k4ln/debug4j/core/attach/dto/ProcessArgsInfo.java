@@ -27,6 +27,12 @@ public class ProcessArgsInfo {
     private List<String> programArgs = new ArrayList<>();
 
     /**
+     * 系统属性
+     */
+    @Builder.Default
+    private List<String> properties = new ArrayList<>();
+
+    /**
      * 环境变量
      */
     @Builder.Default

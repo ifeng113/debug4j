@@ -32,6 +32,11 @@ public class CommandProcessRespMessage {
     private List<String> programArgs;
 
     /**
+     * 系统属性
+     */
+    private List<String> properties;
+
+    /**
      * 环境变量
      */
     private List<String> envs;
@@ -42,7 +47,7 @@ public class CommandProcessRespMessage {
     private String jvmRuntimeInfo;
 
     public static byte[] buildCommandProcessRespMessage(String reqId,
-                                                        List<String> jvmArgs, List<String> programArgs,
+                                                        List<String> jvmArgs, List<String> programArgs, List<String> properties,
                                                         List<String> envs, String jvmRuntimeInfo) {
         return (JSON.toJSONString(Command.builder()
                 .command(CommandTypeEnum.ATTACH_RESP_PROCESS_ARG_DETAILS)
@@ -50,6 +55,7 @@ public class CommandProcessRespMessage {
                         .reqId(reqId)
                         .jvmArgs(jvmArgs)
                         .programArgs(programArgs)
+                        .properties(properties)
                         .envs(envs)
                         .jvmRuntimeInfo(jvmRuntimeInfo)
                         .build())

@@ -13,10 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
 import java.lang.management.ManagementFactory;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @Slf4j
 public class Debug4jProcessOperator {
@@ -30,6 +27,9 @@ public class Debug4jProcessOperator {
 
     /**
      * 进程重载
+     *
+     * @param processReq
+     * @return
      */
     public static ProcessArgsInfo reload(CommandProcessReqMessage processReq) {
         if (StrUtil.isBlank(Debugger.getDebug4jCommand().getRootUniqueId())) {
@@ -38,8 +38,6 @@ public class Debug4jProcessOperator {
                 return getProcessArgsInfo();
             } else if (Debugger.getDebug4jCommand().getReloadMode().equals(Debug4jCommand.ReloadMode.Restart)) {
                 restartChildProcess(processReq);
-                // todo，子进程
-                return ProcessArgsInfo.builder().build();
             }
         }
         return ProcessArgsInfo.builder().build();
@@ -47,11 +45,18 @@ public class Debug4jProcessOperator {
 
     /**
      * 获取进程参数
+     *
+     * @return
      */
     public static ProcessArgsInfo getProcessArgsInfo() {
         return ProcessArgsInfo.builder()
                 .jvmArgs(ManagementFactory.getRuntimeMXBean().getInputArguments())
                 .programArgs(Debugger.getDebug4jCommand().getOriginalArgs())
+                .properties(System.getProperties()
+                        .entrySet()
+                        .stream()
+                        .map(e -> e.getKey() + "=" + e.getValue())
+                        .toList())
                 .envs(System.getenv()
                         .entrySet()
                         .stream()
@@ -67,7 +72,20 @@ public class Debug4jProcessOperator {
      */
     public static synchronized void restartCurrentProcess(CommandProcessReqMessage processReq) {
         Debugger.getDebug4jCommand().getReloadCloseHandler().accept(null);
-        Debugger.getDebug4jCommand().getReloadStartHandler().accept(null);
+        ProcessArgsInfo processArgsInfo = getProcessArgsInfo();
+        processReq.getRemoveProperties().forEach(e -> {
+            if (e.split("=").length == 2) {
+                System.clearProperty(e.split("=")[0]);
+            }
+        });
+        processReq.getAddProperties().forEach(e -> {
+            if (e.split("=").length == 2) {
+                System.setProperty(e.split("=")[0], e.split("=")[1]);
+            }
+        });
+        processArgsInfo.getProgramArgs().removeAll(processReq.getRemoveProgramArgs());
+        processArgsInfo.getProgramArgs().addAll(processReq.getAddProgramArgs());
+        Debugger.getDebug4jCommand().getReloadStartHandler().accept(processArgsInfo.getProgramArgs());
     }
 
     /**
@@ -81,9 +99,22 @@ public class Debug4jProcessOperator {
             if (process != null && process.isAlive()) {
                 process.destroy();
             }
-            processBuilder = new ProcessBuilder(getRestartCommand());
+            processBuilder = new ProcessBuilder(getRestartCommand(processReq));
             processBuilder.redirectErrorStream(true);
             processBuilder.inheritIO();
+            Map<String, String> environment = new HashMap<>();
+            processReq.getCoverEnvs().forEach(e -> {
+                if (e.split("=").length == 2) {
+                    environment.put(e.split("=")[0], e.split("=")[1]);
+                }
+            });
+            List<String> environmentList = environment.entrySet()
+                    .stream()
+                    .sorted(Map.Entry.comparingByKey())
+                    .map(e -> e.getKey() + "=" + e.getValue())
+                    .toList();
+            log.info("coverEnvs: {}", JSON.toJSONString(environmentList));
+            processBuilder.environment().putAll(environment);
             process = processBuilder.start();
         } catch (Exception e) {
             e.printStackTrace();
@@ -95,7 +126,7 @@ public class Debug4jProcessOperator {
      *
      * @return
      */
-    private static List<String> getRestartCommand() {
+    private static List<String> getRestartCommand(CommandProcessReqMessage processReqMessage) {
         List<String> command = new ArrayList<>();
         String javaBin = ProcessHandle.current().info().command()
                 .orElseGet(() -> System.getProperty("java.home") + File.separator + "bin" + File.separator + "java");
@@ -103,17 +134,35 @@ public class Debug4jProcessOperator {
         List<String> originalJvmArgs = ManagementFactory.getRuntimeMXBean().getInputArguments();
         if (originalJvmArgs != null && !originalJvmArgs.isEmpty()) {
             log.info("originalJvmArgs: {}", JSON.toJSONString(originalJvmArgs));
-            Optional<String> any = originalJvmArgs.stream().filter(e -> e.startsWith("-agentlib:jdwp")).findAny();
+            List<String> newJvmArgs = new ArrayList<>(originalJvmArgs.stream()
+                    .filter(e -> !processReqMessage.getRemoveJvmArgs().contains(e))
+                    .filter(e -> !e.startsWith("-agentlib:jdwp")).toList());
+            Optional<String> any = originalJvmArgs.stream()
+                    .filter(e -> !processReqMessage.getRemoveJvmArgs().contains(e))
+                    .filter(e -> e.startsWith("-agentlib:jdwp")).findAny();
             if (any.isPresent()) {
                 String port = StringUtils.extractPort(any.get());
                 if (StrUtil.isNotBlank(port)) {
                     String newJdwpArg = any.get().replace(port, String.valueOf(NetUtil.getUsableLocalPort()));
                     newJdwpArg = newJdwpArg.replace("server=n", "server=y");
                     newJdwpArg = newJdwpArg.replace("suspend=y", "suspend=n");
-                    command.add(newJdwpArg);
+                    newJvmArgs.add(0, newJdwpArg);
                 }
             }
-            command.addAll(originalJvmArgs.stream().filter(e -> !e.startsWith("-agentlib:jdwp")).toList());
+            newJvmArgs.addAll(processReqMessage.getAddJvmArgs());
+            log.info("newJvmArgs: {}", JSON.toJSONString(newJvmArgs));
+            processReqMessage.getRemoveProperties().forEach(e -> {
+                if (e.split("=").length == 2) {
+                    newJvmArgs.add("-D" + e.split("=")[0]);
+                }
+            });
+            processReqMessage.getAddProperties().forEach(e -> {
+                if (e.split("=").length == 2) {
+                    newJvmArgs.add("-D" + e);
+                }
+            });
+            log.info("newJvmArgs with properties: {}", JSON.toJSONString(newJvmArgs));
+            command.addAll(newJvmArgs);
         }
         if (StrUtil.isNotBlank(Debugger.getDebug4jCommand().getJarPath())) {
             command.add("-jar");
@@ -125,7 +174,11 @@ public class Debug4jProcessOperator {
         }
         if (Debugger.getDebug4jCommand().getOriginalArgs() != null && !Debugger.getDebug4jCommand().getOriginalArgs().isEmpty()) {
             log.info("originalProgramArgs: {}", JSON.toJSONString(Debugger.getDebug4jCommand().getOriginalArgs()));
-            command.addAll(Debugger.getDebug4jCommand().getOriginalArgs());
+            List<String> newProgramArgs = new ArrayList<>(Debugger.getDebug4jCommand().getOriginalArgs());
+            newProgramArgs.removeAll(processReqMessage.getRemoveProgramArgs());
+            newProgramArgs.addAll(processReqMessage.getAddProgramArgs());
+            log.info("newProgramArgs: {}", JSON.toJSONString(Debugger.getDebug4jCommand().getOriginalArgs()));
+            command.addAll(newProgramArgs);
         }
         String rootUniqueId = StrUtil.isNotBlank(Debugger.getDebug4jCommand().getRootUniqueId()) ?
                 Debugger.getDebug4jCommand().getRootUniqueId() : Debugger.getCommandInfoMessage().getUniqueId();

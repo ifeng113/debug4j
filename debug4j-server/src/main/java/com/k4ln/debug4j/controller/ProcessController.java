@@ -4,6 +4,7 @@ package com.k4ln.debug4j.controller;
 import com.k4ln.debug4j.common.response.Result;
 import com.k4ln.debug4j.controller.vo.ProcessArgReqVO;
 import com.k4ln.debug4j.controller.vo.ProcessArgRespVO;
+import com.k4ln.debug4j.controller.vo.ProcessReloadReqVO;
 import com.k4ln.debug4j.service.ProcessService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
@@ -37,6 +38,26 @@ public class ProcessController {
     @PostMapping("/args")
     public Result<ProcessArgRespVO> args(@RequestBody @Valid ProcessArgReqVO processArgReqVO) {
         return Result.ok(processService.args(processArgReqVO));
+    }
+
+    /**
+     * 重启进程（Restart模式无法立即获取子进程参数，返回为空）
+     *
+     * @return
+     */
+    @PostMapping("/reload")
+    public Result<ProcessArgRespVO> reload(@RequestBody @Valid ProcessReloadReqVO processReloadReqVO) {
+        return Result.ok(processService.reload(processReloadReqVO));
+    }
+
+    /**
+     * 进程调整
+     *
+     * @return
+     */
+    @PostMapping("/adjustment")
+    public Result<ProcessArgRespVO> adjustment(@RequestBody @Valid ProcessReloadReqVO processReloadReqVO) {
+        return Result.ok(processService.reload(processReloadReqVO));
     }
 
 }
