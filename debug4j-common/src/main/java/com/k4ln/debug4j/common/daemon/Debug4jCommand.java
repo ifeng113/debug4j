@@ -1,12 +1,16 @@
 package com.k4ln.debug4j.common.daemon;
 
+import com.k4ln.debug4j.common.daemon.enums.ExtendedHookType;
+import com.k4ln.debug4j.common.daemon.enums.ReloadMode;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 @Data
 @Builder
@@ -50,13 +54,30 @@ public class Debug4jCommand {
     private String rootUniqueId;
 
     /**
+     * 扩展回调
+     */
+    private Map<ExtendedHookType, Function<?, ?>> extendedHook;
+
+    /**
      * 加载进程命令对象
      *
      * @param sourceArgs
      * @param reloadMode
      * @return
      */
-    public static Debug4jCommand loadDebug4jCommand(String[] sourceArgs, Debug4jCommand.ReloadMode reloadMode) {
+    public static Debug4jCommand loadDebug4jCommand(String[] sourceArgs, ReloadMode reloadMode) {
+        return loadDebug4jCommand(sourceArgs, reloadMode, null);
+    }
+
+    /**
+     * 加载进程命令对象
+     *
+     * @param sourceArgs
+     * @param reloadMode
+     * @param extendedHook
+     * @return
+     */
+    public static Debug4jCommand loadDebug4jCommand(String[] sourceArgs, ReloadMode reloadMode, Map<ExtendedHookType, Function<?, ?>> extendedHook) {
         String rootUniqueId = null;
         for (String sourceArg : sourceArgs) {
             if (sourceArg.contains("--debug4j-root-uniqueId")) {
@@ -86,15 +107,7 @@ public class Debug4jCommand {
                 .jarPath(jarPath)
                 .cls(cls)
                 .rootUniqueId(rootUniqueId)
+                .extendedHook(extendedHook)
                 .build();
-    }
-
-    /**
-     * 重载模式
-     */
-    public enum ReloadMode {
-        None,       // 不支持
-        Reload,     // 当前进程重启（支持程序参数、系统属性修改；不支持jvm参数、环境变量修改，如动态开启jdwp,gc等）
-        Restart,    // 新建子进程重启（支持程序参数、系统属性[受限，可结合AdjustmentTypeEnum.property食用]、jvm参数、环境变量修改，但如果原本存在jdwp的情况下，子进程的jdwp需使用新端口链接）
     }
 }

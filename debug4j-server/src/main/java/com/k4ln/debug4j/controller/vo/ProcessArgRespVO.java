@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+import java.util.Map;
 
 @Data
 @Builder
@@ -34,7 +35,7 @@ public class ProcessArgRespVO {
     private List<String> envs;
 
     /**
-     * jvm运行信息
+     * 钩子参数
      */
-    private String jvmRuntimeInfo;
+    private Map<String, List<String>> hookArgs;
 }

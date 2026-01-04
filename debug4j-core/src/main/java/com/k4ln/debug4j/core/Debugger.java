@@ -4,6 +4,7 @@ import cn.hutool.core.net.NetUtil;
 import cn.hutool.core.thread.ThreadUtil;
 import com.k4ln.debug4j.common.daemon.Debug4jCommand;
 import com.k4ln.debug4j.common.daemon.Debug4jMode;
+import com.k4ln.debug4j.common.daemon.enums.ReloadMode;
 import com.k4ln.debug4j.common.protocol.command.message.CommandInfoMessage;
 import com.k4ln.debug4j.core.client.SocketClient;
 import lombok.Getter;
@@ -77,7 +78,7 @@ public class Debugger {
                 .jdwpPort(jdwpPort)
                 .debug4jMode(debug4jMode)
                 .rootUniqueId(command != null ? command.getRootUniqueId() : null)
-                .reloadMode(command != null ? command.getReloadMode() : Debug4jCommand.ReloadMode.None)
+                .reloadMode(command != null ? command.getReloadMode() : ReloadMode.None)
                 .build();
         scheduledExecutor = ThreadUtil.createScheduledExecutor(10);
         scheduledExecutor.scheduleWithFixedDelay(buildKeepAliveRunnable(host, port, key), 0, 10, TimeUnit.SECONDS);

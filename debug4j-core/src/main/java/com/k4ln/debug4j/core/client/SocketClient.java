@@ -195,11 +195,11 @@ public class SocketClient {
                     } else if (command.getCommand().equals(CommandTypeEnum.ATTACH_REQ_PROCESS_ARG)) {
                         CommandProcessReqMessage processReq = JSON.parseObject(JSON.toJSONString(command.getData()), CommandProcessReqMessage.class);
                         ProcessArgsInfo processArgsInfo = Debug4jProcessOperator.getProcessArgsInfo();
-                        SocketProtocolUtil.sendMessage(session, HashUtil.fnvHash(processReq.getReqId()), ProtocolTypeEnum.COMMAND, CommandProcessRespMessage.buildCommandProcessRespMessage(processReq.getReqId(), processArgsInfo.getJvmArgs(), processArgsInfo.getProgramArgs(), processArgsInfo.getProperties(), processArgsInfo.getEnvs(), processArgsInfo.getJvmRuntimeInfo()));
+                        SocketProtocolUtil.sendMessage(session, HashUtil.fnvHash(processReq.getReqId()), ProtocolTypeEnum.COMMAND, CommandProcessRespMessage.buildCommandProcessRespMessage(processReq.getReqId(), processArgsInfo.getJvmArgs(), processArgsInfo.getProgramArgs(), processArgsInfo.getProperties(), processArgsInfo.getEnvs(), processArgsInfo.getHookArgs()));
                     } else if (command.getCommand().equals(CommandTypeEnum.ATTACH_REQ_PROCESS_RELOAD)) {
                         CommandProcessReqMessage processReq = JSON.parseObject(JSON.toJSONString(command.getData()), CommandProcessReqMessage.class);
                         ProcessArgsInfo processArgsInfo = Debug4jProcessOperator.reload(processReq);
-                        SocketProtocolUtil.sendMessage(session, HashUtil.fnvHash(processReq.getReqId()), ProtocolTypeEnum.COMMAND, CommandProcessRespMessage.buildCommandProcessRespMessage(processReq.getReqId(), processArgsInfo.getJvmArgs(), processArgsInfo.getProgramArgs(), processArgsInfo.getProperties(), processArgsInfo.getEnvs(), processArgsInfo.getJvmRuntimeInfo()));
+                        SocketProtocolUtil.sendMessage(session, HashUtil.fnvHash(processReq.getReqId()), ProtocolTypeEnum.COMMAND, CommandProcessRespMessage.buildCommandProcessRespMessage(processReq.getReqId(), processArgsInfo.getJvmArgs(), processArgsInfo.getProgramArgs(), processArgsInfo.getProperties(), processArgsInfo.getEnvs(), processArgsInfo.getHookArgs()));
                     }
                 }
             }

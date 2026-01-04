@@ -2,6 +2,7 @@ package com.k4ln.demo;
 
 import cn.hutool.core.util.RandomUtil;
 import com.k4ln.debug4j.common.daemon.Debug4jCommand;
+import com.k4ln.debug4j.common.daemon.enums.ReloadMode;
 import com.k4ln.debug4j.daemon.Debug4jDaemon;
 import lombok.extern.slf4j.Slf4j;
 
@@ -16,9 +17,9 @@ public class Demo1DaemonMain {
 
 //        Debug4jDaemon.start(true, "demo1-daemon", "com.k4ln","127.0.0.1", 7988, "k4ln", null, true);
 
-        Debug4jCommand debug4jCommand = loadDebug4jCommand(args, Debug4jCommand.ReloadMode.Restart);
+        Debug4jCommand debug4jCommand = loadDebug4jCommand(args, ReloadMode.Restart);
         debug4jCommand.setReloadCloseHandler(h -> close());
-        Debug4jDaemon.start(true, "demo1-daemon", "com.k4ln","127.0.0.1", 7988, "k4ln", debug4jCommand, true);
+        Debug4jDaemon.start(true, "demo1-daemon", "com.k4ln", "127.0.0.1", 7988, "k4ln", debug4jCommand, true);
 
         start();
     }
@@ -30,7 +31,7 @@ public class Demo1DaemonMain {
                 return;
             }
             logNumber(i);
-            if (i == 999){
+            if (i == 999) {
                 i = 0;
             }
         }

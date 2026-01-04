@@ -1,6 +1,6 @@
 package com.k4ln.debug4j.boot.starter;
 
-import com.k4ln.debug4j.common.daemon.Debug4jCommand;
+import com.k4ln.debug4j.common.daemon.enums.ReloadMode;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -23,7 +23,7 @@ public class Debug4jProperties {
     /**
      * 重启模式
      */
-    private Debug4jCommand.ReloadMode reloadMode = Debug4jCommand.ReloadMode.Restart;
+    private ReloadMode reloadMode = ReloadMode.Restart;
 
     /**
      * 开发者模式

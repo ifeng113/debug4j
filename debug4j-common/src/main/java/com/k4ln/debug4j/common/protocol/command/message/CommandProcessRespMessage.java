@@ -9,6 +9,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+import java.util.Map;
 
 @Data
 @Builder
@@ -42,13 +43,13 @@ public class CommandProcessRespMessage {
     private List<String> envs;
 
     /**
-     * jvm运行信息
+     * 钩子参数
      */
-    private String jvmRuntimeInfo;
+    private Map<String, List<String>> hookArgs;
 
     public static byte[] buildCommandProcessRespMessage(String reqId,
                                                         List<String> jvmArgs, List<String> programArgs, List<String> properties,
-                                                        List<String> envs, String jvmRuntimeInfo) {
+                                                        List<String> envs, Map<String, List<String>> hookArgs) {
         return (JSON.toJSONString(Command.builder()
                 .command(CommandTypeEnum.ATTACH_RESP_PROCESS_ARG_DETAILS)
                 .data(CommandProcessRespMessage.builder()
@@ -57,7 +58,7 @@ public class CommandProcessRespMessage {
                         .programArgs(programArgs)
                         .properties(properties)
                         .envs(envs)
-                        .jvmRuntimeInfo(jvmRuntimeInfo)
+                        .hookArgs(hookArgs)
                         .build())
                 .build())
         ).getBytes();

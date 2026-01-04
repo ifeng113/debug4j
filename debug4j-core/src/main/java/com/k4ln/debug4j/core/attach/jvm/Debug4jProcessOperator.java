@@ -5,6 +5,8 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.system.SystemUtil;
 import com.alibaba.fastjson2.JSON;
 import com.k4ln.debug4j.common.daemon.Debug4jCommand;
+import com.k4ln.debug4j.common.daemon.enums.ExtendedHookType;
+import com.k4ln.debug4j.common.daemon.enums.ReloadMode;
 import com.k4ln.debug4j.common.protocol.command.message.CommandProcessReqMessage;
 import com.k4ln.debug4j.common.utils.StringUtils;
 import com.k4ln.debug4j.core.Debugger;
@@ -33,10 +35,10 @@ public class Debug4jProcessOperator {
      */
     public static ProcessArgsInfo reload(CommandProcessReqMessage processReq) {
         if (StrUtil.isBlank(Debugger.getDebug4jCommand().getRootUniqueId())) {
-            if (Debugger.getDebug4jCommand().getReloadMode().equals(Debug4jCommand.ReloadMode.Reload)) {
+            if (Debugger.getDebug4jCommand().getReloadMode().equals(ReloadMode.Reload)) {
                 restartCurrentProcess(processReq);
                 return getProcessArgsInfo();
-            } else if (Debugger.getDebug4jCommand().getReloadMode().equals(Debug4jCommand.ReloadMode.Restart)) {
+            } else if (Debugger.getDebug4jCommand().getReloadMode().equals(ReloadMode.Restart)) {
                 restartChildProcess(processReq);
             }
         }
@@ -49,9 +51,17 @@ public class Debug4jProcessOperator {
      * @return
      */
     public static ProcessArgsInfo getProcessArgsInfo() {
+        Debug4jCommand debug4jCommand = Debugger.getDebug4jCommand();
+        Map<String, List<String>> hookArgs = new LinkedHashMap<>();
+        if (debug4jCommand.getExtendedHook() != null && debug4jCommand.getExtendedHook().get(ExtendedHookType.HOOK_ARGS) != null) {
+            Object apply = debug4jCommand.getExtendedHook().get(ExtendedHookType.HOOK_ARGS).apply(null);
+            if (apply instanceof LinkedHashMap) {
+                hookArgs = (LinkedHashMap<String, List<String>>) apply;
+            }
+        }
         return ProcessArgsInfo.builder()
                 .jvmArgs(ManagementFactory.getRuntimeMXBean().getInputArguments())
-                .programArgs(Debugger.getDebug4jCommand().getOriginalArgs())
+                .programArgs(debug4jCommand.getOriginalArgs())
                 .properties(System.getProperties()
                         .entrySet()
                         .stream()
@@ -63,7 +73,7 @@ public class Debug4jProcessOperator {
                         .sorted(Map.Entry.comparingByKey())
                         .map(e -> e.getKey() + "=" + e.getValue())
                         .toList())
-                .jvmRuntimeInfo(SystemUtil.getJavaRuntimeInfo().toString())
+                .hookArgs(hookArgs)
                 .build();
     }
 

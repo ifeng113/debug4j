@@ -6,7 +6,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Data
 @Builder
@@ -39,8 +41,8 @@ public class ProcessArgsInfo {
     private List<String> envs = new ArrayList<>();
 
     /**
-     * jvm运行信息
+     * 钩子参数
      */
     @Builder.Default
-    private String jvmRuntimeInfo = null;
+    private Map<String, List<String>> hookArgs = new LinkedHashMap<>();
 }
