@@ -2,20 +2,24 @@ package com.k4ln.debug4j.core.attach.jvm;
 
 import cn.hutool.core.net.NetUtil;
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.system.SystemUtil;
 import com.alibaba.fastjson2.JSON;
 import com.k4ln.debug4j.common.daemon.Debug4jCommand;
 import com.k4ln.debug4j.common.daemon.enums.ExtendedHookType;
 import com.k4ln.debug4j.common.daemon.enums.ReloadMode;
+import com.k4ln.debug4j.common.protocol.command.message.CommandProcessAdjustmentReqMessage;
 import com.k4ln.debug4j.common.protocol.command.message.CommandProcessReqMessage;
 import com.k4ln.debug4j.common.utils.StringUtils;
 import com.k4ln.debug4j.core.Debugger;
+import com.k4ln.debug4j.core.attach.dto.ProcessAdjustmentInfo;
 import com.k4ln.debug4j.core.attach.dto.ProcessArgsInfo;
+import com.k4ln.debug4j.core.attach.jvm.logger.LoggerInfo;
+import com.k4ln.debug4j.core.attach.jvm.logger.LoggerOperator;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
 import java.lang.management.ManagementFactory;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 public class Debug4jProcessOperator {
@@ -56,16 +60,20 @@ public class Debug4jProcessOperator {
         if (debug4jCommand.getExtendedHook() != null && debug4jCommand.getExtendedHook().get(ExtendedHookType.HOOK_ARGS) != null) {
             Object apply = debug4jCommand.getExtendedHook().get(ExtendedHookType.HOOK_ARGS).apply(null);
             if (apply instanceof LinkedHashMap) {
+                //noinspection unchecked
                 hookArgs = (LinkedHashMap<String, List<String>>) apply;
             }
         }
         return ProcessArgsInfo.builder()
-                .jvmArgs(ManagementFactory.getRuntimeMXBean().getInputArguments())
-                .programArgs(debug4jCommand.getOriginalArgs())
+                .jvmArgs(ManagementFactory.getRuntimeMXBean().getInputArguments()) // 保持原始顺序
+                .programArgs(debug4jCommand.getOriginalArgs()) // 保持原始顺序
                 .properties(System.getProperties()
                         .entrySet()
                         .stream()
                         .map(e -> e.getKey() + "=" + e.getValue())
+                        .toList()
+                        .stream()
+                        .sorted()
                         .toList())
                 .envs(System.getenv()
                         .entrySet()
@@ -79,6 +87,8 @@ public class Debug4jProcessOperator {
 
     /**
      * 当前进程重载模式
+     *
+     * @param processReq
      */
     public static synchronized void restartCurrentProcess(CommandProcessReqMessage processReq) {
         Debugger.getDebug4jCommand().getReloadCloseHandler().accept(null);
@@ -100,6 +110,8 @@ public class Debug4jProcessOperator {
 
     /**
      * 新建子进程模式
+     *
+     * @param processReq
      */
     public static synchronized void restartChildProcess(CommandProcessReqMessage processReq) {
         try {
@@ -197,4 +209,50 @@ public class Debug4jProcessOperator {
         return command;
     }
 
+    /**
+     * 进程调整
+     *
+     * @param adjustmentReqMessage
+     * @return
+     */
+    public static ProcessAdjustmentInfo adjustment(CommandProcessAdjustmentReqMessage adjustmentReqMessage) {
+        switch (adjustmentReqMessage.getAdjustmentType()) {
+            case log -> {
+                Map<String, String> adjustmentContent = adjustmentReqMessage.getAdjustmentContent();
+                if (adjustmentContent != null) {
+                    for (String key : adjustmentContent.keySet()) {
+                        LoggerOperator.setLevel(key, LoggerOperator.Level.valueOf(adjustmentContent.get(key)));
+                    }
+                }
+                Map<String, String> adjustmentResult = LoggerOperator.dump().stream()
+                        .sorted(Comparator.comparing(LoggerInfo::getName))
+                        .collect(Collectors.toMap(LoggerInfo::getName, LoggerInfo::toString, (a, b) -> a, LinkedHashMap::new));
+                return ProcessAdjustmentInfo.builder().adjustmentResult(adjustmentResult).build();
+            }
+            case property -> {
+                Map<String, String> adjustmentContent = adjustmentReqMessage.getAdjustmentContent();
+                if (adjustmentContent != null) {
+                    for (String key : adjustmentContent.keySet()) {
+                        System.setProperty(key, adjustmentContent.get(key));
+                    }
+                }
+                Properties props = System.getProperties();
+                return ProcessAdjustmentInfo.builder().adjustmentResult(props.stringPropertyNames()
+                        .stream()
+                        .sorted()
+                        .collect(Collectors.toMap(k -> k, props::getProperty, (a, b) -> b, LinkedHashMap::new))).build();
+            }
+            case property_hook -> {
+                Debug4jCommand debug4jCommand = Debugger.getDebug4jCommand();
+                if (debug4jCommand.getExtendedHook() != null && debug4jCommand.getExtendedHook().get(ExtendedHookType.HOOK_ARGS_ADJUSTMENT) != null) {
+                    Object apply = debug4jCommand.getExtendedHook().get(ExtendedHookType.HOOK_ARGS_ADJUSTMENT).apply(adjustmentReqMessage.getAdjustmentContent());
+                    if (apply instanceof LinkedHashMap) {
+                        //noinspection unchecked
+                        return ProcessAdjustmentInfo.builder().adjustmentResult((LinkedHashMap) apply).build();
+                    }
+                }
+            }
+        }
+        return ProcessAdjustmentInfo.builder().build();
+    }
 }

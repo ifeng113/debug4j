@@ -35,6 +35,9 @@ dependencies {
 
     implementation 'org.springframework.boot:spring-boot-starter-web'
 
+    // Log4j2 TEST
+//    implementation 'org.springframework.boot:spring-boot-starter-log4j2'
+
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
@@ -42,3 +45,10 @@ dependencies {
 tasks.named('test') {
     useJUnitPlatform()
 }
+
+// Log4j2 TEST
+//configurations {
+//    all*.exclude group: 'ch.qos.logback', module: 'logback-classic'
+//    all*.exclude group: 'ch.qos.logback', module: 'logback-core'
+//    all*.exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
+//}

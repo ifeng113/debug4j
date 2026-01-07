@@ -27,7 +27,7 @@ public enum CommandTypeEnum {
 
     ATTACH_REQ_PROCESS_ARG("0x0301", "请求进程参数"),
     ATTACH_REQ_PROCESS_RELOAD("0x0302", "请求进程重启"),
-
+    ATTACH_REQ_PROCESS_ADJUSTMENT("0x0303", "请求进程调整"),
 
     // client -> server
     ATTACH_RESP_CLASS_ALL("0x0901", "响应所有类"),
@@ -37,6 +37,7 @@ public enum CommandTypeEnum {
     ATTACH_RESP_TASK_DETAILS("0x0905", "响应任务详情"),
 
     ATTACH_RESP_PROCESS_ARG_DETAILS("0x0906", "响应进程详情"),
+    ATTACH_RESP_PROCESS_ADJUSTMENT_RESULT("0x0907", "响应进程调整结果"),
 
     ;
 

@@ -1,8 +1,10 @@
 package com.k4ln.debug4j.common.protocol.command.message;
 
 import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.annotation.JSONField;
 import com.k4ln.debug4j.common.protocol.command.Command;
 import com.k4ln.debug4j.common.protocol.command.CommandTypeEnum;
+import com.k4ln.debug4j.common.protocol.command.message.deserializer.SequentialMapDeserializer;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -45,6 +47,7 @@ public class CommandProcessRespMessage {
     /**
      * 钩子参数
      */
+    @JSONField(deserializeUsing = SequentialMapDeserializer.class)
     private Map<String, List<String>> hookArgs;
 
     public static byte[] buildCommandProcessRespMessage(String reqId,

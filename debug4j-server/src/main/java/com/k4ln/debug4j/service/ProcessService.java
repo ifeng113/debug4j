@@ -3,12 +3,12 @@ package com.k4ln.debug4j.service;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.lang.UUID;
 import cn.hutool.core.util.HashUtil;
+import com.k4ln.debug4j.common.protocol.command.message.CommandProcessAdjustmentReqMessage;
+import com.k4ln.debug4j.common.protocol.command.message.CommandProcessAdjustmentRespMessage;
 import com.k4ln.debug4j.common.protocol.command.message.CommandProcessReqMessage;
 import com.k4ln.debug4j.common.protocol.command.message.CommandProcessRespMessage;
 import com.k4ln.debug4j.common.protocol.socket.ProtocolTypeEnum;
-import com.k4ln.debug4j.controller.vo.ProcessArgReqVO;
-import com.k4ln.debug4j.controller.vo.ProcessArgRespVO;
-import com.k4ln.debug4j.controller.vo.ProcessReloadReqVO;
+import com.k4ln.debug4j.controller.vo.*;
 import com.k4ln.debug4j.socket.SocketServer;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -60,6 +60,26 @@ public class ProcessService {
                 CommandProcessRespMessage.class);
         if (processResp != null) {
             return BeanUtil.toBean(processResp, ProcessArgRespVO.class);
+        }
+        return null;
+    }
+
+    /**
+     * 进程内调整
+     *
+     * @param adjustmentReqVO
+     * @return
+     */
+    public ProcessAdjustmentRespVO adjustment(ProcessAdjustmentReqVO adjustmentReqVO) {
+        adjustmentReqVO.setClientSessionId(attachHub.clientSessionCheck(adjustmentReqVO.getClientSessionId(), socketServer));
+        String reqId = UUID.fastUUID().toString(true);
+        CommandProcessAdjustmentRespMessage adjustmentRespMessage = attachHub.syncResult(reqId, () ->
+                        socketServer.sendMessage(adjustmentReqVO.getClientSessionId(), HashUtil.fnvHash(reqId), ProtocolTypeEnum.COMMAND,
+                                CommandProcessAdjustmentReqMessage.buildCommandProcessAdjustmentReqMessage(
+                                        reqId, adjustmentReqVO.getAdjustmentType(), adjustmentReqVO.getAdjustmentContent())),
+                CommandProcessAdjustmentRespMessage.class);
+        if (adjustmentRespMessage != null) {
+            return BeanUtil.toBean(adjustmentRespMessage, ProcessAdjustmentRespVO.class);
         }
         return null;
     }

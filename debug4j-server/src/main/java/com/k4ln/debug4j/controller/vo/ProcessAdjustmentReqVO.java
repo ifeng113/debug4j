@@ -7,6 +7,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.Map;
+
 
 @Data
 @Builder
@@ -24,6 +26,11 @@ public class ProcessAdjustmentReqVO {
      * 调整类型
      */
     private AdjustmentTypeEnum adjustmentType;
+
+    /**
+     * 调整内容
+     */
+    private Map<String, String> adjustmentContent;
 
 
 }

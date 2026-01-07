@@ -2,7 +2,7 @@ package com.k4ln.debug4j.boot.starter;
 
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.extra.spring.SpringUtil;
-import com.k4ln.debug4j.boot.starter.spring.PropertySourcesReader;
+import com.k4ln.debug4j.boot.starter.spring.PropertySourcesHandler;
 import com.k4ln.debug4j.common.daemon.Debug4jCommand;
 import com.k4ln.debug4j.common.daemon.enums.ExtendedHookType;
 import com.k4ln.debug4j.daemon.Debug4jDaemon;
@@ -15,6 +15,7 @@ import org.springframework.boot.web.servlet.context.AnnotationConfigServletWebSe
 import org.springframework.context.ApplicationContext;
 import org.springframework.core.env.ConfigurableEnvironment;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -30,7 +31,9 @@ public class Debug4jAutoConfiguration {
 
     public Debug4jAutoConfiguration(Debug4jProperties debug4jProperties, ConfigurableEnvironment environment, ApplicationArguments args) {
         debug4jProperties.setApplication(StrUtil.isBlank(debug4jProperties.getApplication()) ? environment.getProperty(SPRING_APPLICATION_NAME) : debug4jProperties.getApplication());
-        Map<ExtendedHookType, Function<?, ?>> extendedHook = Map.of(ExtendedHookType.HOOK_ARGS, (Function<List<String>, Map<String, List<String>>>) h -> PropertySourcesReader.getAllProperties(environment));
+        Map<ExtendedHookType, Function<Object, ?>> extendedHook = new HashMap<>();
+        extendedHook.put(ExtendedHookType.HOOK_ARGS, (Function<Object, Map<String, List<String>>>) h -> PropertySourcesHandler.getAllProperties(environment));
+        extendedHook.put(ExtendedHookType.HOOK_ARGS_ADJUSTMENT, (Function<Object, Map<String, String>>) h -> PropertySourcesHandler.adjustmentProperties(environment, h));
         Debug4jCommand debug4jCommand = loadDebug4jCommand(args.getSourceArgs(), debug4jProperties.getReloadMode(), extendedHook);
         debug4jCommand.setReloadCloseHandler(h -> {
             ApplicationContext applicationContext = SpringUtil.getApplicationContext();

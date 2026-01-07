@@ -2,9 +2,7 @@ package com.k4ln.debug4j.controller;
 
 
 import com.k4ln.debug4j.common.response.Result;
-import com.k4ln.debug4j.controller.vo.ProcessArgReqVO;
-import com.k4ln.debug4j.controller.vo.ProcessArgRespVO;
-import com.k4ln.debug4j.controller.vo.ProcessReloadReqVO;
+import com.k4ln.debug4j.controller.vo.*;
 import com.k4ln.debug4j.service.ProcessService;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
@@ -51,13 +49,13 @@ public class ProcessController {
     }
 
     /**
-     * 进程调整
+     * 进程内调整
      *
      * @return
      */
     @PostMapping("/adjustment")
-    public Result<ProcessArgRespVO> adjustment(@RequestBody @Valid ProcessReloadReqVO processReloadReqVO) {
-        return Result.ok(processService.reload(processReloadReqVO));
+    public Result<ProcessAdjustmentRespVO> adjustment(@RequestBody @Valid ProcessAdjustmentReqVO adjustmentReqVO) {
+        return Result.ok(processService.adjustment(adjustmentReqVO));
     }
 
 }

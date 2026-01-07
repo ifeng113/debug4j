@@ -56,7 +56,7 @@ public class Debug4jCommand {
     /**
      * 扩展回调
      */
-    private Map<ExtendedHookType, Function<?, ?>> extendedHook;
+    private Map<ExtendedHookType, Function<Object, ?>> extendedHook;
 
     /**
      * 加载进程命令对象
@@ -77,7 +77,7 @@ public class Debug4jCommand {
      * @param extendedHook
      * @return
      */
-    public static Debug4jCommand loadDebug4jCommand(String[] sourceArgs, ReloadMode reloadMode, Map<ExtendedHookType, Function<?, ?>> extendedHook) {
+    public static Debug4jCommand loadDebug4jCommand(String[] sourceArgs, ReloadMode reloadMode, Map<ExtendedHookType, Function<Object, ?>> extendedHook) {
         String rootUniqueId = null;
         for (String sourceArg : sourceArgs) {
             if (sourceArg.contains("--debug4j-root-uniqueId")) {

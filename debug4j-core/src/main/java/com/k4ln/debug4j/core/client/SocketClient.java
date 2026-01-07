@@ -16,6 +16,7 @@ import com.k4ln.debug4j.core.Debugger;
 import com.k4ln.debug4j.core.attach.Debug4jAttachOperator;
 import com.k4ln.debug4j.core.attach.Debug4jWatcher;
 import com.k4ln.debug4j.core.attach.dto.MethodLineInfo;
+import com.k4ln.debug4j.core.attach.dto.ProcessAdjustmentInfo;
 import com.k4ln.debug4j.core.attach.dto.ProcessArgsInfo;
 import com.k4ln.debug4j.core.attach.dto.SourceCodeInfo;
 import com.k4ln.debug4j.core.attach.jvm.Debug4jProcessOperator;
@@ -200,6 +201,10 @@ public class SocketClient {
                         CommandProcessReqMessage processReq = JSON.parseObject(JSON.toJSONString(command.getData()), CommandProcessReqMessage.class);
                         ProcessArgsInfo processArgsInfo = Debug4jProcessOperator.reload(processReq);
                         SocketProtocolUtil.sendMessage(session, HashUtil.fnvHash(processReq.getReqId()), ProtocolTypeEnum.COMMAND, CommandProcessRespMessage.buildCommandProcessRespMessage(processReq.getReqId(), processArgsInfo.getJvmArgs(), processArgsInfo.getProgramArgs(), processArgsInfo.getProperties(), processArgsInfo.getEnvs(), processArgsInfo.getHookArgs()));
+                    } else if (command.getCommand().equals(CommandTypeEnum.ATTACH_REQ_PROCESS_ADJUSTMENT)) {
+                        CommandProcessAdjustmentReqMessage adjustmentReqMessage = JSON.parseObject(JSON.toJSONString(command.getData()), CommandProcessAdjustmentReqMessage.class);
+                        ProcessAdjustmentInfo processAdjustmentInfo = Debug4jProcessOperator.adjustment(adjustmentReqMessage);
+                        SocketProtocolUtil.sendMessage(session, HashUtil.fnvHash(adjustmentReqMessage.getReqId()), ProtocolTypeEnum.COMMAND, CommandProcessAdjustmentRespMessage.buildCommandProcessAdjustmentRespMessage(adjustmentReqMessage.getReqId(), processAdjustmentInfo.getAdjustmentResult()));
                     }
                 }
             }
