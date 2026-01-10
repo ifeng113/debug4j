@@ -14,6 +14,6 @@ public class Demo2ExtendedHookService implements ExtendedHookService {
 
     @Override
     public void adjustmentExtendedHook(Map<ExtendedHookType, Function<Object, ?>> extendedHook) {
-        extendedHook.remove(ExtendedHookType.HOOK_ARGS);
+//        extendedHook.remove(ExtendedHookType.HOOK_ARGS);
     }
 }
