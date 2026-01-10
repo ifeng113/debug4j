@@ -1,4 +1,4 @@
-package com.k4ln.debug4j.boot.starter.spring;
+package com.k4ln.debug4j.boot.starter.hook;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.env.*;
