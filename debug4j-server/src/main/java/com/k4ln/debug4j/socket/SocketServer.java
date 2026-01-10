@@ -2,6 +2,7 @@ package com.k4ln.debug4j.socket;
 
 import cn.hutool.core.util.ArrayUtil;
 import com.alibaba.fastjson2.JSON;
+import com.k4ln.debug4j.common.daemon.Debug4jMode;
 import com.k4ln.debug4j.common.protocol.command.Command;
 import com.k4ln.debug4j.common.protocol.command.CommandTypeEnum;
 import com.k4ln.debug4j.common.protocol.command.message.*;
@@ -23,6 +24,7 @@ import org.smartboot.socket.transport.AioSession;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
@@ -248,6 +250,21 @@ public class SocketServer {
                 closeClient(clientId);
             }
         }
+    }
+
+    /**
+     * 获取进程的会话Session
+     *
+     * @param threadSessionId
+     * @return
+     */
+    public String getProcessSessionId(String threadSessionId) {
+        CommandInfoMessage commandInfoMessage = infoMessageMap.get(threadSessionId);
+        Optional<CommandInfoMessage> any = infoMessageMap.values()
+                .stream()
+                .filter(e -> e.getDebug4jMode().equals(Debug4jMode.process) && e.getUniqueId().equals(commandInfoMessage.getUniqueId()))
+                .findAny();
+        return any.map(CommandInfoMessage::getClientSessionId).orElse(null);
     }
 
 }

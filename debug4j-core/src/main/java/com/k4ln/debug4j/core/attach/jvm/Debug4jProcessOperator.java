@@ -15,9 +15,13 @@ import com.k4ln.debug4j.core.attach.dto.ProcessArgsInfo;
 import com.k4ln.debug4j.core.attach.jvm.logger.LoggerInfo;
 import com.k4ln.debug4j.core.attach.jvm.logger.LoggerOperator;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.sshd.server.SshServer;
+import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider;
+import org.apache.sshd.sftp.server.SftpSubsystemFactory;
 
 import java.io.File;
 import java.lang.management.ManagementFactory;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -30,6 +34,11 @@ public class Debug4jProcessOperator {
     public static ProcessBuilder processBuilder = null;
 
     public static Process process = null;
+
+    /**
+     * SFTP服务
+     */
+    private static SshServer sshd = null;
 
     /**
      * 进程重载
@@ -252,7 +261,64 @@ public class Debug4jProcessOperator {
                     }
                 }
             }
+            case sftp_open -> {
+                int port = sshd != null ? sshd.getPort() : 0;
+                Map<String, String> adjustmentContent = adjustmentReqMessage.getAdjustmentContent();
+                String username = adjustmentContent.get("username");
+                String password = adjustmentContent.get("password");
+                port = openSftpServer(StrUtil.isBlank(username) ? "root" : username, StrUtil.isBlank(password) ? "123456" : password, port);
+                return ProcessAdjustmentInfo.builder().adjustmentResult(Map.of("sftp_port", port + "")).build();
+            }
+            case sftp_close -> {
+                int port = closeSftpServer();
+                return ProcessAdjustmentInfo.builder().adjustmentResult(Map.of("sftp_port", port + "")).build();
+            }
         }
         return ProcessAdjustmentInfo.builder().build();
+    }
+
+    /**
+     * 开启SFTP服务
+     *
+     * @param username
+     * @param password
+     */
+    private static int openSftpServer(String username, String password, int port) {
+        try {
+            if (sshd != null && !sshd.isClosed() && sshd.isStarted()) {
+                return sshd.getPort();
+            }
+            if (sshd == null || sshd.isClosed()) {
+                sshd = SshServer.setUpDefaultServer();
+            }
+            int usableLocalPort = port != 0 ? port : NetUtil.getUsableLocalPort();
+            sshd.setPort(usableLocalPort);
+            sshd.setKeyPairProvider(new SimpleGeneratorHostKeyProvider(Path.of("debug4j_sftp")));
+            sshd.setPasswordAuthenticator((u, p, s) -> username.equals(u) && password.equals(p));
+            sshd.setSubsystemFactories(List.of(new SftpSubsystemFactory()));
+            sshd.start();
+            return usableLocalPort;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return 0;
+    }
+
+    /**
+     * 关闭SFTP服务
+     *
+     * @return
+     */
+    private static int closeSftpServer() {
+        try {
+            if (sshd != null && !sshd.isClosed() && sshd.isStarted()) {
+                int port = sshd.getPort();
+                sshd.close(true);
+                return port;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return 0;
     }
 }

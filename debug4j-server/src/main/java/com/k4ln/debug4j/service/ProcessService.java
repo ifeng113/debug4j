@@ -3,6 +3,7 @@ package com.k4ln.debug4j.service;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.lang.UUID;
 import cn.hutool.core.util.HashUtil;
+import cn.hutool.core.util.StrUtil;
 import com.k4ln.debug4j.common.protocol.command.message.CommandProcessAdjustmentReqMessage;
 import com.k4ln.debug4j.common.protocol.command.message.CommandProcessAdjustmentRespMessage;
 import com.k4ln.debug4j.common.protocol.command.message.CommandProcessReqMessage;
@@ -23,6 +24,9 @@ public class ProcessService {
 
     @Resource
     SocketServer socketServer;
+
+    @Resource
+    ProxyService proxyService;
 
     /**
      * 获取进程参数
@@ -79,8 +83,54 @@ public class ProcessService {
                                         reqId, adjustmentReqVO.getAdjustmentType(), adjustmentReqVO.getAdjustmentContent())),
                 CommandProcessAdjustmentRespMessage.class);
         if (adjustmentRespMessage != null) {
-            return BeanUtil.toBean(adjustmentRespMessage, ProcessAdjustmentRespVO.class);
+            ProcessAdjustmentRespVO bean = BeanUtil.toBean(adjustmentRespMessage, ProcessAdjustmentRespVO.class);
+            adjustmentAfter(adjustmentReqVO, bean);
+            return bean;
         }
         return null;
+    }
+
+    /**
+     * 进程内调整后置处理器
+     *
+     * @param respVO
+     */
+    public void adjustmentAfter(ProcessAdjustmentReqVO adjustmentReqVO, ProcessAdjustmentRespVO respVO) {
+        if (adjustmentReqVO != null && adjustmentReqVO.getAdjustmentType() != null) {
+            switch (adjustmentReqVO.getAdjustmentType()) {
+                case sftp_open -> {
+                    if (respVO != null && respVO.getAdjustmentResult() != null) {
+                        String port = respVO.getAdjustmentResult().get("sftp_port");
+                        if (StrUtil.isNotBlank(port) && !port.equals("0")) {
+                            String processSessionId = socketServer.getProcessSessionId(adjustmentReqVO.getClientSessionId());
+                            if (StrUtil.isNotBlank(processSessionId)) {
+                                ProxyRespVO proxyRespVO = proxyService.proxy(ProxyReqVO.builder()
+                                        .remark("debug4j sftp server")
+                                        .clientSessionId(processSessionId)
+                                        .remoteHost("127.0.0.1")
+                                        .remotePort(Integer.parseInt(port))
+                                        .build());
+                                respVO.getAdjustmentResult().put("sftp_proxy", proxyRespVO.getProxyPort() + "");
+                            }
+                        }
+                    }
+                }
+                case sftp_close -> {
+                    if (respVO != null && respVO.getAdjustmentResult() != null) {
+                        String port = respVO.getAdjustmentResult().get("sftp_port");
+                        if (StrUtil.isNotBlank(port) && !port.equals("0")) {
+                            String processSessionId = socketServer.getProcessSessionId(adjustmentReqVO.getClientSessionId());
+                            if (StrUtil.isNotBlank(processSessionId)) {
+                                proxyService.proxyRemove(ProxyRemoveReqVO.builder()
+                                        .clientSessionId(processSessionId)
+                                        .remoteHost("127.0.0.1")
+                                        .remotePort(Integer.parseInt(port))
+                                        .build());
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }

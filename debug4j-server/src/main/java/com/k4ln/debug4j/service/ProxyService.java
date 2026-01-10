@@ -15,7 +15,6 @@ import com.k4ln.debug4j.controller.vo.ProxyRespVO;
 import com.k4ln.debug4j.socket.SocketServer;
 import com.k4ln.debug4j.socket.SocketTFProxyServer;
 import jakarta.annotation.Resource;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -32,9 +31,6 @@ public class ProxyService {
 
     @Resource
     SocketServerProperties serverProperties;
-
-    @Resource
-    HttpServletRequest httpServletRequest;
 
     /**
      * ProxyReqVO -> SocketTFProxyServer
@@ -100,7 +96,7 @@ public class ProxyService {
      * @param proxyReqVO
      */
     private void clientSessionCheck(ProxyReqVO proxyReqVO) {
-        if (StrUtil.isBlank(proxyReqVO.getClientSessionId() ) || !socketServer.getSessionMap().containsKey(proxyReqVO.getClientSessionId())) {
+        if (StrUtil.isBlank(proxyReqVO.getClientSessionId()) || !socketServer.getSessionMap().containsKey(proxyReqVO.getClientSessionId())) {
             if (serverProperties.getDeveloper()) {
                 Optional<CommandInfoMessage> any = socketServer.getInfoMessageMap().values().stream()
                         .filter(e -> e.getDebug4jMode().equals(Debug4jMode.process)).findFirst();
@@ -160,6 +156,7 @@ public class ProxyService {
                 SocketTFProxyServer socketTFProxyServer = proxyServers.get(proxyKey);
                 socketTFProxyServer.shutdown();
                 proxyServers.remove(proxyKey);
+                log.info("proxy server:{} removed", proxyKey);
             } catch (Exception e) {
                 throw new BusinessAbort("proxy remove with error: " + e.getMessage());
             }

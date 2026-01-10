@@ -15,6 +15,7 @@ import org.smartboot.socket.transport.AioQuickServer;
 import org.smartboot.socket.transport.AioSession;
 import org.smartboot.socket.transport.WriteBuffer;
 
+import java.net.InetAddress;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -111,6 +112,13 @@ public class SocketTFProxyServer {
             }
 
             private boolean allowNetworks(String hostAddress) {
+                if (isIPv6(hostAddress)) {
+                    if (proxyReqVO.getAllowNetworks() != null && proxyReqVO.getAllowNetworks().size() == 1 && proxyReqVO.getAllowNetworks().get(0).equals("0.0.0.0/0")) {
+                        return true;
+                    }
+                    log.error("hostAddress must be an IPV4 address error hostAddress:{}", hostAddress);
+                    return false;
+                }
                 List<String> allowNetworks = proxyReqVO.getAllowNetworks();
                 for (String allowNetwork : allowNetworks) {
                     try {
@@ -156,4 +164,20 @@ public class SocketTFProxyServer {
         return "aioSession-" + clientId;
     }
 
+    public static boolean isIPv6(String ip) {
+        try {
+            if (ip == null || ip.isBlank()) return false;
+            if (ip.startsWith("[") && ip.endsWith("]")) {
+                ip = ip.substring(1, ip.length() - 1);
+            }
+            InetAddress address = InetAddress.getByAddress(parseIPv6(ip));
+            return address.getAddress().length == 16;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private static byte[] parseIPv6(String ip) throws Exception {
+        return InetAddress.getByName(ip).getAddress();
+    }
 }
