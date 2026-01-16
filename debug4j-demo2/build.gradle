@@ -17,7 +17,7 @@ java {
 // docker run -d -p 33999:33999 --name demo2 com.k4ln/debug4j-demo2:0.0.1-snapshot
 // docker run -d -p 33999:33999 -e JAVA_OPTIONS='-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005' --name demo2 com.k4ln/debug4j-demo2:0.0.1-snapshot
 docker {
-    url = 'tcp://124.71.163.140:2375'
+    url = 'tcp://122.152.214.33:2375'
     springBootApplication {
         // https://hub.docker.com/_/eclipse-temurin/tags?page=1&name=17
         baseImage = 'eclipse-temurin:17.0.13_11-jdk'
@@ -26,7 +26,7 @@ docker {
 }
 
 dockerCreateDockerfile {
-    entryPoint("sh","-c",'java $JAVA_OPTIONS -cp /app/resources:/app/classes:/app/libs/* com.k4ln.demo2.Demo2Application $APP_OPTIONS')
+    entryPoint("sh", "-c", 'java $JAVA_OPTIONS -cp /app/resources:/app/classes:/app/libs/* com.k4ln.demo2.Demo2Application $APP_OPTIONS')
 }
 
 dependencies {
@@ -38,6 +38,9 @@ dependencies {
 
     // Log4j2 TEST
 //    implementation 'org.springframework.boot:spring-boot-starter-log4j2'
+
+    // Arthas Spring Boot Starter TEST
+//    implementation 'com.taobao.arthas:arthas-spring-boot-starter:4.1.5'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

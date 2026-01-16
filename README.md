@@ -3,6 +3,7 @@
 **Debug4j** 是一款高效、便捷的 Java 调试工具，专注于远程服务器端的 Java 代码调试。它通过极具创意的方式实现了可视化远程代码修改与调试功能，具备轻松部署与快速集成的特点。
 
 ### 支持版本
+
 - 本仓库适用于 JDK 17 及以上版本。
 - 如果您使用的是 JDK 8，请移步至 [debug4j-jdk8](https://github.com/ifeng113/debug4j-jdk8)。
 
@@ -41,16 +42,19 @@
        --debug4j.key=k4ln --sa-token.http-basic='k4ln:123456'
    ```
 
-   - `--debug4j.key`：设置通信密钥。
-   - `--sa-token.http-basic`：设置 API 通信密钥。
+    - `--debug4j.key`：设置通信密钥。
+    - `--sa-token.http-basic`：设置 API 通信密钥。
 
->**端口说明**
+> **端口说明**
 
-   - `7987`：api及web调试端口，访问[http://debug4j-server:7987](http://debug4j-server:7987) 进入调试管理页面。
-   - `7988`：debug4j-server与被调试应用的通信端口。配置项： `--debug4j.socket-port`。
-   - `33000-34000`：debug4j-server默认代理开放端口区段，如果server部署在公网中，请关闭对应端口防火墙。配置项： `--debug4j.min-proxy-port` 与 `--debug4j.max-proxy-port`。
+- `7987`：api及web调试端口，访问[http://debug4j-server:7987](http://debug4j-server:7987) 进入调试管理页面。
+- `7988`：debug4j-server与被调试应用的通信端口。配置项： `--debug4j.socket-port`。
+- `33000-34000`
+  ：debug4j-server默认代理开放端口区段，如果server部署在公网中，请关闭对应端口防火墙。配置项： `--debug4j.min-proxy-port`
+  与 `--debug4j.max-proxy-port`。
 
-> API 文档见 [Debug4j.postman_collection.json](https://github.com/ifeng113/debug4j/blob/master/src/main/resources/Debug4j.postman_collection.json)。
+> API
+> 文档见 [Debug4j.postman_collection.json](https://github.com/ifeng113/debug4j/blob/master/src/main/resources/Debug4j.postman_collection.json)。
 
 > **调试配置 + 代理管理 + 日志管理**
 
@@ -77,7 +81,9 @@
 ### Java 应用集成
 
 在您的项目中添加以下依赖：
+
 ```xml
+
 <dependency>
     <groupId>io.github.ifeng113</groupId>
     <artifactId>debug4j-daemon</artifactId>
@@ -86,9 +92,11 @@
 ```
 
 在应用程序中启动 Debug4j：
+
 ```java
-Debug4jDaemon.start(true, "demo1-daemon", "com.k4ln", "192.168.1.13", 7988, "k4ln");
+Debug4jDaemon.start(true,"demo1-daemon","com.k4ln","192.168.1.13",7988,"k4ln");
 ```
+
 示例代码请参考 [debug4j-demo1](https://github.com/ifeng113/debug4j/tree/master/debug4j-demo1)。
 
 ---
@@ -96,7 +104,9 @@ Debug4jDaemon.start(true, "demo1-daemon", "com.k4ln", "192.168.1.13", 7988, "k4l
 ### Spring Boot 项目集成
 
 在您的项目中添加以下依赖：
+
 ```xml
+
 <dependency>
     <groupId>io.github.ifeng113</groupId>
     <artifactId>debug4j-spring-boot-starter</artifactId>
@@ -105,6 +115,7 @@ Debug4jDaemon.start(true, "demo1-daemon", "com.k4ln", "192.168.1.13", 7988, "k4l
 ```
 
 在 `application.yml` 中配置 Debug4j：
+
 ```yaml
 debug4j:
   package-name: com.k4ln
@@ -112,6 +123,7 @@ debug4j:
   port: 7988
   key: k4ln
 ```
+
 示例代码请参考 [debug4j-demo2](https://github.com/ifeng113/debug4j/tree/master/debug4j-demo2)。
 
 ---
@@ -119,19 +131,19 @@ debug4j:
 ## 使用限制与注意事项
 
 1. **类签名限制**：
-   - 代码热更新或字节码热更新无法修改类的字段名或方法名（即类签名）。
-   - JVM 支持新增方法和变量，但不支持删除，Debug4j 暂仅支持方法体内部代码变更。
+    - 代码热更新或字节码热更新无法修改类的字段名或方法名（即类签名）。
+    - JVM 支持新增方法和变量，但不支持删除，Debug4j 暂仅支持方法体内部代码变更。
 
 2. **Agent 兼容性问题**：
-   - 使用 Agent（如 ByteBuddy）可能修改字节码，导致源码热更新和字节码热更新功能不可用。
-   - 推荐尽量避免使用 Agent 或调整相关配置。
+    - 使用 Agent（如 ByteBuddy）可能修改字节码，导致源码热更新和字节码热更新功能不可用。
+    - 推荐尽量避免使用 Agent 或调整相关配置。
 
 3. **字节码版本兼容性**：
-   - 确保用于热更新的类文件编译版本与目标 JVM 兼容。
+    - 确保用于热更新的类文件编译版本与目标 JVM 兼容。
 
 4. **代码行补丁注意事项**：
-   - 使用第三方工具类时，请使用全路径，避免重名类导致编译失败。
-   
+    - 使用第三方工具类时，请使用全路径，避免重名类导致编译失败。
+
    示例：
    ```json
    {
@@ -142,12 +154,14 @@ debug4j:
        "sourceCode": "log.info(\"com.alibaba.fastjson2.JSON.toJSONString(patch13)\");"
    }
    ```
-   
+
 5. **应用集成限制**：
-   - 应用集成必须使用jdk作为基础镜像，jdk17推荐使用：```eclipse-temurin:17.0.13_11-jdk```。更多镜像：https://hub.docker.com/_/eclipse-temurin/tags?page=1
-   - 如果开启远程调试，需在java启动时手动配置：
-   
-     ```-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005```
+    - 应用集成必须使用jdk作为基础镜像，jdk17推荐使用：```eclipse-temurin:17.0.13_11-jdk```
+      。更多镜像：https://hub.docker.com/_/eclipse-temurin/tags?page=1
+    - 如果开启远程调试，需在java启动时手动配置：
+
+      ```-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005```
+    - _Arthas老大哥同样也需要JDK环境：https://arthas.aliyun.com/doc/docker.html_
 
 ---
 

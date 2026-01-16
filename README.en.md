@@ -1,8 +1,11 @@
 # Debug4j
 
-**Debug4j** is an efficient and user-friendly Java debugging tool focused on debugging Java code on remote servers. It enables visual remote code modification and debugging through a creative approach, offering easy deployment and seamless integration.
+**Debug4j** is an efficient and user-friendly Java debugging tool focused on debugging Java code on remote servers. It
+enables visual remote code modification and debugging through a creative approach, offering easy deployment and seamless
+integration.
 
 ### Supported Versions
+
 - This repository is compatible with JDK 17 and above.
 - For JDK 8, please refer to [debug4j-jdk8](https://github.com/ifeng113/debug4j-jdk8).
 
@@ -41,16 +44,20 @@
        --debug4j.key=k4ln --sa-token.http-basic='k4ln:123456'
    ```
 
-   - `--debug4j.key`: Sets the communication key.
-   - `--sa-token.http-basic`: Sets the API communication key.
+    - `--debug4j.key`: Sets the communication key.
+    - `--sa-token.http-basic`: Sets the API communication key.
 
 > **Port Details**
 
-- `7987`: API and web debugging port. Visit [http://debug4j-server:7987](http://debug4j-server:7987) for the debugging management page.
-- `7988`: Communication port between debug4j-server and the target application. Configurable with `--debug4j.socket-port`.
-- `33000-34000`: Default proxy open port range for debug4j-server. If the server is deployed on a public network, close these firewall ports. Configurable with `--debug4j.min-proxy-port` and `--debug4j.max-proxy-port`.
+- `7987`: API and web debugging port. Visit [http://debug4j-server:7987](http://debug4j-server:7987) for the debugging
+  management page.
+- `7988`: Communication port between debug4j-server and the target application. Configurable
+  with `--debug4j.socket-port`.
+- `33000-34000`: Default proxy open port range for debug4j-server. If the server is deployed on a public network, close
+  these firewall ports. Configurable with `--debug4j.min-proxy-port` and `--debug4j.max-proxy-port`.
 
-> API documentation is available in [Debug4j.postman_collection.json](https://github.com/ifeng113/debug4j/blob/master/src/main/resources/Debug4j.postman_collection.json).
+> API documentation is available
+> in [Debug4j.postman_collection.json](https://github.com/ifeng113/debug4j/blob/master/src/main/resources/Debug4j.postman_collection.json).
 
 > **Debugging Configuration + Proxy Management + Log Management**
 
@@ -77,7 +84,9 @@
 ### Java Application Integration
 
 Add the following dependency to your project:
+
 ```xml
+
 <dependency>
     <groupId>io.github.ifeng113</groupId>
     <artifactId>debug4j-daemon</artifactId>
@@ -86,9 +95,11 @@ Add the following dependency to your project:
 ```
 
 Start Debug4j in your application:
+
 ```java
-Debug4jDaemon.start(true, "demo1-daemon", "com.k4ln", "192.168.1.13", 7988, "k4ln");
+Debug4jDaemon.start(true,"demo1-daemon","com.k4ln","192.168.1.13",7988,"k4ln");
 ```
+
 Refer to the example code in [debug4j-demo1](https://github.com/ifeng113/debug4j/tree/master/debug4j-demo1).
 
 ---
@@ -96,7 +107,9 @@ Refer to the example code in [debug4j-demo1](https://github.com/ifeng113/debug4j
 ### Spring Boot Integration
 
 Add the following dependency to your project:
+
 ```xml
+
 <dependency>
     <groupId>io.github.ifeng113</groupId>
     <artifactId>debug4j-spring-boot-starter</artifactId>
@@ -105,6 +118,7 @@ Add the following dependency to your project:
 ```
 
 Configure Debug4j in `application.yml`:
+
 ```yaml
 debug4j:
   package-name: com.k4ln
@@ -112,6 +126,7 @@ debug4j:
   port: 7988
   key: k4ln
 ```
+
 Refer to the example code in [debug4j-demo2](https://github.com/ifeng113/debug4j/tree/master/debug4j-demo2).
 
 ---
@@ -119,18 +134,22 @@ Refer to the example code in [debug4j-demo2](https://github.com/ifeng113/debug4j
 ## Limitations and Considerations
 
 1. **Class Signature Restrictions**:
-   - Code hot updates or bytecode hot updates cannot modify class field names or method signatures (i.e., class signatures).
-   - While the JVM supports adding methods and variables, it does not support deletion. Debug4j currently supports changes only within method bodies.
+    - Code hot updates or bytecode hot updates cannot modify class field names or method signatures (i.e., class
+      signatures).
+    - While the JVM supports adding methods and variables, it does not support deletion. Debug4j currently supports
+      changes only within method bodies.
 
 2. **Agent Compatibility Issues**:
-   - Agents (e.g., ByteBuddy) may modify bytecode, causing source code hot update and bytecode hot update functions to become unavailable.
-   - It is recommended to avoid using agents or adjust related configurations.
+    - Agents (e.g., ByteBuddy) may modify bytecode, causing source code hot update and bytecode hot update functions to
+      become unavailable.
+    - It is recommended to avoid using agents or adjust related configurations.
 
 3. **Bytecode Version Compatibility**:
-   - Ensure the compiled version of the class files used for hot updates is compatible with the target JVM.
+    - Ensure the compiled version of the class files used for hot updates is compatible with the target JVM.
 
 4. **Code Line Patch Considerations**:
-   - When using third-party utility classes, use fully qualified paths to avoid compilation failures due to class name conflicts.
+    - When using third-party utility classes, use fully qualified paths to avoid compilation failures due to class name
+      conflicts.
 
    Example:
    ```json
@@ -144,10 +163,12 @@ Refer to the example code in [debug4j-demo2](https://github.com/ifeng113/debug4j
    ```
 
 5. **Application Integration Restrictions**:
-   - Application integration must use JDK as the base image. For JDK 8, it is recommended to use: ```eclipse-temurin:17.0.13_11-jdk```. More images can be found at: https://hub.docker.com/_/eclipse-temurin/tags?page=1
-   - If remote debugging is enabled, you need to manually configure the following when starting Java: 
-   
-     ```-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005```
+    - Application integration must use JDK as the base image. For JDK 8, it is recommended to
+      use: ```eclipse-temurin:17.0.13_11-jdk```. More images can be found
+      at: https://hub.docker.com/_/eclipse-temurin/tags?page=1
+    - If remote debugging is enabled, you need to manually configure the following when starting Java:
+
+      ```-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005```
 
 ---
 

@@ -16,7 +16,7 @@ java {
 
 // docker run --net=host -d --name debug4j-server com.k4ln/debug4j-server:0.0.1-snapshot
 docker {
-    url = 'tcp://124.71.163.140:2375'
+    url = 'tcp://122.152.214.33:2375'
     springBootApplication {
         // https://hub.docker.com/_/eclipse-temurin/tags?page=1&name=17
         baseImage = 'eclipse-temurin:17.0.13_11-jre'

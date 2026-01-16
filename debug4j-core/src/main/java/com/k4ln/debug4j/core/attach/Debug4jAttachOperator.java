@@ -21,10 +21,10 @@ import lombok.extern.slf4j.Slf4j;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.lang.instrument.Instrumentation;
 import java.lang.instrument.UnmodifiableClassException;
 import java.net.URL;
-import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -92,7 +92,10 @@ public class Debug4jAttachOperator {
                 Class<?> clazz = Class.forName(className);
                 URL resource = clazz.getClassLoader().getResource(clazz.getName().replace('.', '/') + ".class");
                 assert resource != null;
-                byte[] bytes = Files.readAllBytes(new File(resource.toURI()).toPath());
+                byte[] bytes;
+                try (InputStream in = resource.openStream()) {
+                    bytes = in.readAllBytes();
+                }
                 byteCodeInfo.setOriginalClassFileByteCode(bytes);
             } catch (Exception e) {
                 e.printStackTrace();

@@ -81,10 +81,11 @@ public class AttachHub {
         try {
             runnable.run();
             String result = future.get(30, TimeUnit.SECONDS);
-            attachTask.remove(reqId);
             return JSON.parseObject(result, clazz);
         } catch (Exception e) {
             e.printStackTrace();
+        } finally {
+            attachTask.remove(reqId);
         }
         return null;
     }
@@ -162,7 +163,7 @@ public class AttachHub {
     public void removeSseEmitter(String key, String loginId) {
         List<AttachTaskEmitter> taskEmitters = attachTaskEmitters.get(key);
         if (taskEmitters != null) {
-            if (loginId != null){
+            if (loginId != null) {
                 for (AttachTaskEmitter emitter : taskEmitters) {
                     if (emitter.getLoginID().equals(loginId)) {
                         emitter.getSseEmitter().complete();

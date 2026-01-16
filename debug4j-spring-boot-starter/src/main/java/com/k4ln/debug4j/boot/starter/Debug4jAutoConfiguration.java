@@ -24,7 +24,7 @@ import java.util.function.Function;
 import static com.k4ln.debug4j.common.daemon.Debug4jCommand.loadDebug4jCommand;
 
 @Slf4j
-@ConditionalOnProperty(prefix = "debug4j", value = "enable", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "debug4j", value = "enabled", matchIfMissing = true)
 @EnableConfigurationProperties(Debug4jProperties.class)
 public class Debug4jAutoConfiguration {
 

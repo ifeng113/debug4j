@@ -9,7 +9,7 @@ version = '1.0-SNAPSHOT'
 
 // docker run -d --name demo1 com.k4ln/debug4j-demo1:1.0-snapshot
 docker {
-    url = 'tcp://124.71.163.140:2375'
+    url = 'tcp://122.152.214.33:2375'
     javaApplication {
         // https://hub.docker.com/_/eclipse-temurin/tags?page=1&name=17
         baseImage = 'eclipse-temurin:17.0.13_11-jdk'

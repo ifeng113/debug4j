@@ -100,7 +100,7 @@ public class ProcessService {
             switch (adjustmentReqVO.getAdjustmentType()) {
                 case sftp_open -> {
                     if (respVO != null && respVO.getAdjustmentResult() != null) {
-                        String port = respVO.getAdjustmentResult().get("sftp_port");
+                        String port = respVO.getAdjustmentResult().get("sftpPort");
                         if (StrUtil.isNotBlank(port) && !port.equals("0")) {
                             String processSessionId = socketServer.getProcessSessionId(adjustmentReqVO.getClientSessionId());
                             if (StrUtil.isNotBlank(processSessionId)) {
@@ -117,7 +117,7 @@ public class ProcessService {
                 }
                 case sftp_close -> {
                     if (respVO != null && respVO.getAdjustmentResult() != null) {
-                        String port = respVO.getAdjustmentResult().get("sftp_port");
+                        String port = respVO.getAdjustmentResult().get("sftpPort");
                         if (StrUtil.isNotBlank(port) && !port.equals("0")) {
                             String processSessionId = socketServer.getProcessSessionId(adjustmentReqVO.getClientSessionId());
                             if (StrUtil.isNotBlank(processSessionId)) {

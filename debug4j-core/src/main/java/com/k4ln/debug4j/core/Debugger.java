@@ -28,8 +28,15 @@ public class Debugger {
     @Getter
     private static Debug4jCommand debug4jCommand;
 
-    @Getter
     private static Instrumentation instrumentation;
+
+    public static Instrumentation getInstrumentation() {
+        if (instrumentation == null) {
+            // feature load agent instrumentation
+            throw new RuntimeException("ByteBuddyAgent.install() failed please run using the JDK environment.");
+        }
+        return instrumentation;
+    }
 
     /**
      * 开启调试器
@@ -66,7 +73,11 @@ public class Debugger {
     public static void start(String application, String uniqueId, String packageName, String host, Integer port, String key,
                              Long pid, Integer jdwpPort, Debug4jMode debug4jMode, Debug4jCommand command) {
         if (debug4jMode.equals(Debug4jMode.thread)) {
-            instrumentation = ByteBuddyAgent.install();
+            try {
+                instrumentation = ByteBuddyAgent.install();
+            } catch (Exception e) {
+                log.warn("ByteBuddyAgent.install() failed:{} please run using the JDK environment.", e.getMessage());
+            }
         }
         commandInfoMessage = CommandInfoMessage.builder()
                 .applicationName(application)

@@ -14,6 +14,9 @@ import com.k4ln.debug4j.core.attach.dto.ProcessAdjustmentInfo;
 import com.k4ln.debug4j.core.attach.dto.ProcessArgsInfo;
 import com.k4ln.debug4j.core.attach.jvm.logger.LoggerInfo;
 import com.k4ln.debug4j.core.attach.jvm.logger.LoggerOperator;
+import com.sun.management.HotSpotDiagnosticMXBean;
+import jdk.jfr.Configuration;
+import jdk.jfr.Recording;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.sshd.server.SshServer;
 import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider;
@@ -21,9 +24,13 @@ import org.apache.sshd.sftp.server.SftpSubsystemFactory;
 
 import java.io.File;
 import java.lang.management.ManagementFactory;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Slf4j
 public class Debug4jProcessOperator {
@@ -41,7 +48,15 @@ public class Debug4jProcessOperator {
     private static SshServer sshd = null;
 
     /**
+     * JFR
+     */
+    private static Object recording = null;
+
+    /**
      * 进程重载
+     * jdwp:    -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
+     * gc:      -Xlog:gc*,gc+age=trace,gc+heap=info:file=debug4j-gc.log:time,level,tags
+     * jmx:     -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=33010 -Dcom.sun.management.jmxremote.rmi.port=33010 -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=122.152.214.33
      *
      * @param processReq
      * @return
@@ -182,16 +197,8 @@ public class Debug4jProcessOperator {
             }
             newJvmArgs.addAll(processReqMessage.getAddJvmArgs());
             log.info("newJvmArgs: {}", JSON.toJSONString(newJvmArgs));
-            processReqMessage.getRemoveProperties().forEach(e -> {
-                if (e.split("=").length == 2) {
-                    newJvmArgs.add("-D" + e.split("=")[0]);
-                }
-            });
-            processReqMessage.getAddProperties().forEach(e -> {
-                if (e.split("=").length == 2) {
-                    newJvmArgs.add("-D" + e);
-                }
-            });
+            newJvmArgs.removeAll(processReqMessage.getRemoveProperties());
+            newJvmArgs.addAll(processReqMessage.getAddProperties());
             log.info("newJvmArgs with properties: {}", JSON.toJSONString(newJvmArgs));
             command.addAll(newJvmArgs);
         }
@@ -267,11 +274,86 @@ public class Debug4jProcessOperator {
                 String username = adjustmentContent.get("username");
                 String password = adjustmentContent.get("password");
                 port = openSftpServer(StrUtil.isBlank(username) ? "root" : username, StrUtil.isBlank(password) ? "123456" : password, port);
-                return ProcessAdjustmentInfo.builder().adjustmentResult(Map.of("sftp_port", port + "")).build();
+                return ProcessAdjustmentInfo.builder().adjustmentResult(Map.of("sftpPort", port + "")).build();
             }
             case sftp_close -> {
                 int port = closeSftpServer();
-                return ProcessAdjustmentInfo.builder().adjustmentResult(Map.of("sftp_port", port + "")).build();
+                return ProcessAdjustmentInfo.builder().adjustmentResult(Map.of("sftpPort", port + "")).build();
+            }
+            case jvm_heap -> {
+                try {
+                    HotSpotDiagnosticMXBean bean = ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class);
+                    String heapPath = "debug4j-" + System.currentTimeMillis() + ".hprof";
+                    bean.dumpHeap(heapPath, true);
+                    Path path = Path.of(heapPath);
+                    return ProcessAdjustmentInfo.builder().adjustmentResult(Map.of("heapPath", path.toAbsolutePath().toString())).build();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+            case jvm_jfr_start -> {
+                try {
+                    Map<String, String> adjustmentResult = Map.of("jdk.jfr.Recording", "Not supported");
+                    if (recording == null) {
+                        try {
+                            Class.forName("jdk.jfr.Recording");
+                            recording = new Recording(Configuration.getConfiguration("profile"));
+                            Recording recordingPoint = (Recording) recording;
+                            recordingPoint.setMaxAge(Duration.ofHours(1));  // 1小时
+                            recordingPoint.setMaxSize(200 * 1024 * 1024L);  // 200M
+                            recordingPoint.start();
+                            adjustmentResult = recordingPoint.getSettings();
+                        } catch (Exception ignore) {
+                        }
+                    } else {
+                        Recording recordingPoint = (Recording) recording;
+                        adjustmentResult = recordingPoint.getSettings();
+                    }
+                    return ProcessAdjustmentInfo.builder().adjustmentResult(adjustmentResult).build();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+            case jvm_jfr_end -> {
+                Map<String, String> adjustmentResult = Map.of("jdk.jfr.Recording", "Not started");
+                if (recording != null) {
+                    try {
+                        Recording recordingPoint = (Recording) recording;
+                        String jfrPath = "debug4j-" + System.currentTimeMillis() + ".jfr";
+                        Path path = Path.of(jfrPath);
+                        recordingPoint.stop();
+                        recordingPoint.dump(path);
+                        recordingPoint.close();
+                        recording = null;
+                        adjustmentResult = Map.of("jfrPath", path.toAbsolutePath().toString());
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+                return ProcessAdjustmentInfo.builder().adjustmentResult(adjustmentResult).build();
+            }
+            case jvm_list -> {
+                Map<String, String> tempMap = new HashMap<>();
+                Path dir = Paths.get("").toAbsolutePath();
+                try (Stream<Path> stream = Files.list(dir)) {
+                    stream.forEach(p -> {
+                        if (p.getFileName().toString().startsWith("debug4j")
+                                && (p.getFileName().toString().endsWith("hprof") || p.getFileName().toString().endsWith("jfr"))) {
+                            tempMap.put(p.getFileName().toString(), p.toAbsolutePath().toString());
+                        }
+                    });
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                return ProcessAdjustmentInfo.builder().adjustmentResult(tempMap.entrySet()
+                        .stream()
+                        .sorted(Map.Entry.<String, String>comparingByKey().reversed())
+                        .collect(Collectors.toMap(
+                                Map.Entry::getKey,
+                                Map.Entry::getValue,
+                                (a, b) -> a,
+                                LinkedHashMap::new
+                        ))).build();
             }
         }
         return ProcessAdjustmentInfo.builder().build();
@@ -293,7 +375,7 @@ public class Debug4jProcessOperator {
             }
             int usableLocalPort = port != 0 ? port : NetUtil.getUsableLocalPort();
             sshd.setPort(usableLocalPort);
-            sshd.setKeyPairProvider(new SimpleGeneratorHostKeyProvider(Path.of("debug4j_sftp")));
+            sshd.setKeyPairProvider(new SimpleGeneratorHostKeyProvider(Path.of("debug4j-sftp.key")));
             sshd.setPasswordAuthenticator((u, p, s) -> username.equals(u) && password.equals(p));
             sshd.setSubsystemFactories(List.of(new SftpSubsystemFactory()));
             sshd.start();
