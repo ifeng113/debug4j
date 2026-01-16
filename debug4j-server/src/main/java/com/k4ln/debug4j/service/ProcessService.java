@@ -8,12 +8,18 @@ import com.k4ln.debug4j.common.protocol.command.message.CommandProcessAdjustment
 import com.k4ln.debug4j.common.protocol.command.message.CommandProcessAdjustmentRespMessage;
 import com.k4ln.debug4j.common.protocol.command.message.CommandProcessReqMessage;
 import com.k4ln.debug4j.common.protocol.command.message.CommandProcessRespMessage;
+import com.k4ln.debug4j.common.protocol.command.message.enums.AdjustmentTypeEnum;
 import com.k4ln.debug4j.common.protocol.socket.ProtocolTypeEnum;
+import com.k4ln.debug4j.common.response.exception.abort.BusinessAbort;
 import com.k4ln.debug4j.controller.vo.*;
 import com.k4ln.debug4j.socket.SocketServer;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -131,6 +137,51 @@ public class ProcessService {
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * 进程内调整（上传文件）
+     *
+     * @param multipartFiles
+     * @param clientSessionId
+     * @param fileDir
+     * @return
+     */
+    public ProcessAdjustmentRespVO adjustmentUpload(MultipartFile[] multipartFiles, String clientSessionId, String fileDir) {
+        clientSessionId = attachHub.clientSessionCheck(clientSessionId, socketServer);
+        Map<String, String> adjustmentContent = new HashMap<>();
+        adjustmentContent.put("fileDir", fileDir);
+        ProcessAdjustmentRespVO respVO = adjustment(ProcessAdjustmentReqVO.builder()
+                .clientSessionId(clientSessionId)
+                .adjustmentType(AdjustmentTypeEnum.file_list)
+                .adjustmentContent(adjustmentContent)
+                .build());
+        if (respVO != null && respVO.getAdjustmentResult() != null && respVO.getAdjustmentResult().get("//errMsg") == null) {
+            for (MultipartFile file : multipartFiles) {
+                int clientId = HashUtil.fnvHash(UUID.fastUUID().toString(true));
+                Map<String, String> fileTemporary = new HashMap<>();
+                fileTemporary.put("clientId", clientId + "");
+                fileTemporary.put("fileDir", fileDir);
+                fileTemporary.put("filename", file.getOriginalFilename());
+                adjustment(ProcessAdjustmentReqVO.builder()
+                        .clientSessionId(clientSessionId)
+                        .adjustmentType(AdjustmentTypeEnum.file_temporary)
+                        .adjustmentContent(fileTemporary)
+                        .build());
+                try {
+                    socketServer.sendMessage(clientSessionId, clientId, ProtocolTypeEnum.FILE, file.getBytes());
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+            return adjustment(ProcessAdjustmentReqVO.builder()
+                    .clientSessionId(clientSessionId)
+                    .adjustmentType(AdjustmentTypeEnum.file_list)
+                    .adjustmentContent(adjustmentContent)
+                    .build());
+        } else {
+            throw new BusinessAbort("fileDir query failed");
         }
     }
 }

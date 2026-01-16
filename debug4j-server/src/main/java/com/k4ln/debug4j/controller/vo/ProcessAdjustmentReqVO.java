@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.HashMap;
 import java.util.Map;
 
 
@@ -30,7 +31,8 @@ public class ProcessAdjustmentReqVO {
     /**
      * 调整内容
      */
-    private Map<String, String> adjustmentContent;
+    @Builder.Default
+    private Map<String, String> adjustmentContent = new HashMap<>();
 
 
 }

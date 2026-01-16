@@ -10,6 +10,7 @@ import com.k4ln.debug4j.common.protocol.command.message.CommandProcessAdjustment
 import com.k4ln.debug4j.common.protocol.command.message.CommandProcessReqMessage;
 import com.k4ln.debug4j.common.utils.StringUtils;
 import com.k4ln.debug4j.core.Debugger;
+import com.k4ln.debug4j.core.attach.dto.FileInfo;
 import com.k4ln.debug4j.core.attach.dto.ProcessAdjustmentInfo;
 import com.k4ln.debug4j.core.attach.dto.ProcessArgsInfo;
 import com.k4ln.debug4j.core.attach.jvm.logger.LoggerInfo;
@@ -23,12 +24,18 @@ import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider;
 import org.apache.sshd.sftp.server.SftpSubsystemFactory;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.FileTime;
 import java.time.Duration;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -235,10 +242,8 @@ public class Debug4jProcessOperator {
         switch (adjustmentReqMessage.getAdjustmentType()) {
             case log -> {
                 Map<String, String> adjustmentContent = adjustmentReqMessage.getAdjustmentContent();
-                if (adjustmentContent != null) {
-                    for (String key : adjustmentContent.keySet()) {
-                        LoggerOperator.setLevel(key, LoggerOperator.Level.valueOf(adjustmentContent.get(key)));
-                    }
+                for (String key : adjustmentContent.keySet()) {
+                    LoggerOperator.setLevel(key, LoggerOperator.Level.valueOf(adjustmentContent.get(key)));
                 }
                 Map<String, String> adjustmentResult = LoggerOperator.dump().stream()
                         .sorted(Comparator.comparing(LoggerInfo::getName))
@@ -247,10 +252,8 @@ public class Debug4jProcessOperator {
             }
             case property -> {
                 Map<String, String> adjustmentContent = adjustmentReqMessage.getAdjustmentContent();
-                if (adjustmentContent != null) {
-                    for (String key : adjustmentContent.keySet()) {
-                        System.setProperty(key, adjustmentContent.get(key));
-                    }
+                for (String key : adjustmentContent.keySet()) {
+                    System.setProperty(key, adjustmentContent.get(key));
                 }
                 Properties props = System.getProperties();
                 return ProcessAdjustmentInfo.builder().adjustmentResult(props.stringPropertyNames()
@@ -333,30 +336,84 @@ public class Debug4jProcessOperator {
                 return ProcessAdjustmentInfo.builder().adjustmentResult(adjustmentResult).build();
             }
             case jvm_list -> {
-                Map<String, String> tempMap = new HashMap<>();
-                Path dir = Paths.get("").toAbsolutePath();
-                try (Stream<Path> stream = Files.list(dir)) {
-                    stream.forEach(p -> {
-                        if (p.getFileName().toString().startsWith("debug4j")
-                                && (p.getFileName().toString().endsWith("hprof") || p.getFileName().toString().endsWith("jfr"))) {
-                            tempMap.put(p.getFileName().toString(), p.toAbsolutePath().toString());
+                return listFiles("", p -> p.startsWith("debug4j") && (p.endsWith("hprof") || p.endsWith("jfr")), false);
+            }
+            case file_list -> {
+                Map<String, String> adjustmentContent = adjustmentReqMessage.getAdjustmentContent();
+                String path = StrUtil.isBlank(adjustmentContent.get("fileDir")) ? "" : adjustmentContent.get("fileDir");
+                return listFiles(path, p -> true, true);
+            }
+            case file_temporary -> {
+                try {
+                    Map<String, String> adjustmentContent = adjustmentReqMessage.getAdjustmentContent();
+                    String filename = adjustmentContent.get("filename");
+                    String temporaryFilename = "upload_" + adjustmentContent.get("clientId") + "_" + filename;
+                    RandomAccessFile randomAccessFile = new RandomAccessFile(temporaryFilename, "rw");
+                    Debugger.getSocketClient().getSessionRandomAccessFile().put(adjustmentContent.get("clientId"), FileInfo.builder()
+                            .randomAccessFile(randomAccessFile)
+                            .fileDir(adjustmentContent.get("fileDir"))
+                            .temporaryFilename(temporaryFilename)
+                            .filename(filename)
+                            .lastModified(System.currentTimeMillis())
+                            .build());
+                    Debugger.getSocketClient().getSessionRandomAccessFile().entrySet().removeIf(e -> {
+                        if (e.getValue().getLastModified() < System.currentTimeMillis() - 1000 * 60 * 10) {
+                            try {
+                                e.getValue().getRandomAccessFile().close();
+                            } catch (Exception ignored) {
+                            }
+                            return true;
                         }
+                        return false;
                     });
-                } catch (Exception e) {
+                } catch (FileNotFoundException e) {
                     e.printStackTrace();
                 }
-                return ProcessAdjustmentInfo.builder().adjustmentResult(tempMap.entrySet()
-                        .stream()
-                        .sorted(Map.Entry.<String, String>comparingByKey().reversed())
-                        .collect(Collectors.toMap(
-                                Map.Entry::getKey,
-                                Map.Entry::getValue,
-                                (a, b) -> a,
-                                LinkedHashMap::new
-                        ))).build();
             }
         }
         return ProcessAdjustmentInfo.builder().build();
+    }
+
+    /**
+     * 获取文件列表
+     *
+     * @param dir
+     * @param fileNameFilter
+     * @param asc
+     * @return
+     */
+    private static ProcessAdjustmentInfo listFiles(String dir, Function<String, Boolean> fileNameFilter, boolean asc) {
+        Path path = Paths.get(dir).toAbsolutePath();
+        Comparator<Path> comparator = Comparator.comparing((Path p) -> !Files.isDirectory(p))
+                .thenComparing(p -> p.getFileName().toString(), asc ? Comparator.<String>naturalOrder() : Comparator.<String>reverseOrder());
+        Map<String, String> result = new LinkedHashMap<>();
+        try (Stream<Path> stream = Files.list(path)) {
+            stream.filter(p -> fileNameFilter.apply(p.getFileName().toString()))
+                    .sorted(comparator)
+                    .forEach(p -> {
+                        try {
+                            BasicFileAttributes attributes = Files.readAttributes(p, BasicFileAttributes.class);
+                            String attr;
+                            if (attributes.isDirectory()) {
+                                attr = "\uD83D\uDCC1";
+                            } else {
+                                long size = attributes.size();
+                                FileTime fileTime = attributes.lastModifiedTime();
+                                attr = String.format("\uD83D\uDCE6:%.2f KB | \uD83D\uDD52:%s", size / 1024.0, fileTime);
+                            }
+                            result.put(p.getFileName().toString(), attr);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    });
+        } catch (Exception e) {
+            e.printStackTrace();
+            result.put("//errMsg", e.getClass().getName() + ": " + e.getMessage());
+        }
+        result.put("//absolutePath", path.toAbsolutePath().toString());
+        return ProcessAdjustmentInfo.builder()
+                .adjustmentResult(result)
+                .build();
     }
 
     /**

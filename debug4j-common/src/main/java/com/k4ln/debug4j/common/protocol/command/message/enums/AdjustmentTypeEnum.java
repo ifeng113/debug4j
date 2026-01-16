@@ -10,4 +10,8 @@ public enum AdjustmentTypeEnum {
     jvm_jfr_start,          // 开启JFR
     jvm_jfr_end,            // 结束JFR
     jvm_list,               // JVM列表
+    file_list,              // 文件列表
+    file_temporary,         // 创建临时文件
+    file_remove,            // 删除文件
+    file_download,          // 下载文件
 }

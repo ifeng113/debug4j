@@ -8,10 +8,8 @@ import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * 进程接口类
@@ -56,6 +54,18 @@ public class ProcessController {
     @PostMapping("/adjustment")
     public Result<ProcessAdjustmentRespVO> adjustment(@RequestBody @Valid ProcessAdjustmentReqVO adjustmentReqVO) {
         return Result.ok(processService.adjustment(adjustmentReqVO));
+    }
+
+    /**
+     * 进程内调整（上传文件）
+     *
+     * @return
+     */
+    @PostMapping(value = "/adjustment/upload", consumes = "multipart/form-data")
+    public Result<ProcessAdjustmentRespVO> adjustmentUpload(@RequestParam("file") MultipartFile[] file,
+                                                            @RequestParam("clientSessionId") String clientSessionId,
+                                                            @RequestParam("fileDir") String fileDir) {
+        return Result.ok(processService.adjustmentUpload(file, clientSessionId, fileDir));
     }
 
 }

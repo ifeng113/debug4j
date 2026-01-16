@@ -1,3 +1,9 @@
+### mark3
+
+docker run -d -p 33999:33999 -e JAVA_OPTIONS='-Ddebug4j.host=10.0.0.14 -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005 -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=33010 -Dcom.sun.management.jmxremote.rmi.port=33010 -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=122.152.214.33' --name demo2 com.k4ln/debug4j-demo2:0.0.1-snapshot
+![img.png](img.png)
+
+
 ### mark2
 
 1、使用agent可能改变字节码，特别是ByteBuddy，会导致源码热更新与字节码热更新功能不可用；在JDK8的情况下，行补丁因无法反编译执行源码，也不可用

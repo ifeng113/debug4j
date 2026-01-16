@@ -15,10 +15,7 @@ import com.k4ln.debug4j.common.utils.SocketProtocolUtil;
 import com.k4ln.debug4j.core.Debugger;
 import com.k4ln.debug4j.core.attach.Debug4jAttachOperator;
 import com.k4ln.debug4j.core.attach.Debug4jWatcher;
-import com.k4ln.debug4j.core.attach.dto.MethodLineInfo;
-import com.k4ln.debug4j.core.attach.dto.ProcessAdjustmentInfo;
-import com.k4ln.debug4j.core.attach.dto.ProcessArgsInfo;
-import com.k4ln.debug4j.core.attach.dto.SourceCodeInfo;
+import com.k4ln.debug4j.core.attach.dto.*;
 import com.k4ln.debug4j.core.attach.jvm.Debug4jProcessOperator;
 import com.k4ln.debug4j.core.proxy.SocketTFProxyClient;
 import lombok.Getter;
@@ -30,9 +27,16 @@ import org.smartboot.socket.transport.AioQuickClient;
 import org.smartboot.socket.transport.AioSession;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+
+import static com.k4ln.debug4j.common.utils.SocketProtocolUtil.*;
 
 @Slf4j
 public class SocketClient {
@@ -64,6 +68,12 @@ public class SocketClient {
      * socketServer -> packagingData
      */
     final Map<String, byte[]> sessionPackaging = new ConcurrentHashMap<>();
+
+    /**
+     * socketServer -> FileInfo
+     */
+    @Getter
+    final Map<String, FileInfo> sessionRandomAccessFile = new ConcurrentHashMap<>();
 
     /**
      * 是否还存活
@@ -114,6 +124,57 @@ public class SocketClient {
                             log.warn("socketClient proxy no clientId:{}", clientId);
                         }
                     }
+                    case FILE -> handleUploadFile(socketProtocol);
+                }
+            }
+
+            private void handleUploadFile(SocketProtocol socketProtocol) {
+                // 上传文件：新建临时文件，流写入完毕后，再将临时文件移至上传目录（覆盖老文件，删除临时文件）
+                String clientId = socketProtocol.getClientId() + "";
+                FileInfo fileInfo = sessionRandomAccessFile.get(clientId);
+                try {
+                    if (socketProtocol.getSubcontract()) {
+                        int maxBodyLength = READ_BUFFER_SIZE - BUFFER_LENGTH - BUFFER_HEADER;
+                        fileInfo.getRandomAccessFile().seek((long) (socketProtocol.getSubcontractIndex() - 1) * maxBodyLength);
+                        fileInfo.getRandomAccessFile().write(socketProtocol.getBody());
+                        fileInfo.setLastModified(System.currentTimeMillis());
+                        if (Objects.equals(socketProtocol.getSubcontractCount(), socketProtocol.getSubcontractIndex())) {
+                            fileInfo.getRandomAccessFile().close();
+                            sessionRandomAccessFile.remove(clientId);
+                            moveReplaceRename(Path.of(fileInfo.getTemporaryFilename()), Paths.get(fileInfo.getFileDir()), fileInfo.getFilename());
+                        }
+                    } else {
+                        fileInfo.getRandomAccessFile().seek(0);
+                        fileInfo.getRandomAccessFile().write(socketProtocol.getBody());
+                        fileInfo.getRandomAccessFile().close();
+                        sessionRandomAccessFile.remove(clientId);
+                        moveReplaceRename(Path.of(fileInfo.getTemporaryFilename()), Paths.get(fileInfo.getFileDir()), fileInfo.getFilename());
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    if (fileInfo != null && fileInfo.getRandomAccessFile() != null) {
+                        try {
+                            fileInfo.getRandomAccessFile().close();
+                        } catch (IOException e2) {
+                            e2.printStackTrace();
+                        }
+                    }
+                    sessionRandomAccessFile.remove(clientId);
+                }
+            }
+
+            private void moveReplaceRename(Path sourceFile,
+                                           Path targetDir,
+                                           String deleteFileName) {
+                try {
+                    Files.createDirectories(targetDir);
+                    Path deletePath = targetDir.resolve(deleteFileName);
+                    Files.deleteIfExists(deletePath);
+                    Path movedPath = Files.move(sourceFile, targetDir.resolve(sourceFile.getFileName()), StandardCopyOption.REPLACE_EXISTING);
+                    Path finalPath = targetDir.resolve(deleteFileName);
+                    Files.move(movedPath, finalPath, StandardCopyOption.REPLACE_EXISTING);
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
             }
 

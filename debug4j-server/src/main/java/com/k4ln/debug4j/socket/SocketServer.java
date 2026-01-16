@@ -21,6 +21,7 @@ import org.smartboot.socket.extension.processor.AbstractMessageProcessor;
 import org.smartboot.socket.transport.AioQuickServer;
 import org.smartboot.socket.transport.AioSession;
 
+import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -69,6 +70,11 @@ public class SocketServer {
      * socketClient -> packagingData
      */
     final Map<String, byte[]> sessionPackaging = new ConcurrentHashMap<>();
+
+    /**
+     * socketClient -> randomAccessFile
+     */
+    final Map<String, RandomAccessFile> sessionRandomAccessFile = new ConcurrentHashMap<>();
 
     /**
      * socketClient -> CommandInfoMessage
@@ -161,6 +167,9 @@ public class SocketServer {
                         }
                     }
                     case PROXY -> callbackMessage(protocol.getClientId(), data);
+                    case FILE -> {
+                        // 下载文件
+                    }
                 }
             }
 

@@ -11,8 +11,9 @@ public enum ProtocolTypeEnum {
 
     COMMAND("0x0002", "指令"),
 
-
     PROXY("0x0010", "代理流"),
+
+    FILE("0x0020", "文件流"),
 
     ;
 

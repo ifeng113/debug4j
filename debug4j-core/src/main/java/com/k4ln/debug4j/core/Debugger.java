@@ -18,6 +18,7 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class Debugger {
 
+    @Getter
     private static SocketClient socketClient;
 
     @Getter
