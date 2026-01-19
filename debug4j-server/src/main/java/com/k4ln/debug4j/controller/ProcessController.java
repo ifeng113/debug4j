@@ -5,6 +5,7 @@ import com.k4ln.debug4j.common.response.Result;
 import com.k4ln.debug4j.controller.vo.*;
 import com.k4ln.debug4j.service.ProcessService;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.annotation.Validated;
@@ -29,6 +30,7 @@ public class ProcessController {
     /**
      * 获取所有参数
      *
+     * @param processArgReqVO
      * @return
      */
     @PostMapping("/args")
@@ -39,6 +41,7 @@ public class ProcessController {
     /**
      * 重启进程（Restart模式无法立即获取子进程参数，返回为空）
      *
+     * @param processReloadReqVO
      * @return
      */
     @PostMapping("/reload")
@@ -49,6 +52,7 @@ public class ProcessController {
     /**
      * 进程内调整
      *
+     * @param adjustmentReqVO
      * @return
      */
     @PostMapping("/adjustment")
@@ -57,8 +61,11 @@ public class ProcessController {
     }
 
     /**
-     * 进程内调整（上传文件）
+     * 上传文件
      *
+     * @param file
+     * @param clientSessionId
+     * @param fileDir
      * @return
      */
     @PostMapping(value = "/adjustment/upload", consumes = "multipart/form-data")
@@ -66,6 +73,17 @@ public class ProcessController {
                                                             @RequestParam("clientSessionId") String clientSessionId,
                                                             @RequestParam("fileDir") String fileDir) {
         return Result.ok(processService.adjustmentUpload(file, clientSessionId, fileDir));
+    }
+
+    /**
+     * 下载文件
+     *
+     * @param adjustmentReqVO
+     * @param response
+     */
+    @PostMapping(value = "/adjustment/download")
+    public void adjustmentDownload(@RequestBody @Valid ProcessAdjustmentReqVO adjustmentReqVO, HttpServletResponse response) {
+        processService.adjustmentDownload(adjustmentReqVO, response);
     }
 
 }

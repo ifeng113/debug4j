@@ -21,11 +21,7 @@ import org.smartboot.socket.extension.processor.AbstractMessageProcessor;
 import org.smartboot.socket.transport.AioQuickServer;
 import org.smartboot.socket.transport.AioSession;
 
-import java.io.RandomAccessFile;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
@@ -72,11 +68,6 @@ public class SocketServer {
     final Map<String, byte[]> sessionPackaging = new ConcurrentHashMap<>();
 
     /**
-     * socketClient -> randomAccessFile
-     */
-    final Map<String, RandomAccessFile> sessionRandomAccessFile = new ConcurrentHashMap<>();
-
-    /**
      * socketClient -> CommandInfoMessage
      */
     @Getter
@@ -102,6 +93,9 @@ public class SocketServer {
                 // 鉴权
                 if (!protocol.getProtocolType().equals(ProtocolTypeEnum.AUTH) && !checkAuth(session.getSessionID())) {
                     return;
+                }
+                if (protocol.getProtocolType().equals(ProtocolTypeEnum.FILE)) {
+                    attachHub.pushFileResult(protocol.getClientId(), protocol.getBody(), Objects.equals(protocol.getSubcontractIndex(), protocol.getSubcontractCount()));
                 }
                 if (protocol.getSubcontract()) {
                     String sessionPackagingKey = getSessionPackagingKey(session, protocol);
@@ -167,9 +161,6 @@ public class SocketServer {
                         }
                     }
                     case PROXY -> callbackMessage(protocol.getClientId(), data);
-                    case FILE -> {
-                        // 下载文件
-                    }
                 }
             }
 

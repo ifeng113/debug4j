@@ -1,7 +1,10 @@
 package com.k4ln.debug4j.core.attach.jvm;
 
+import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.net.NetUtil;
+import cn.hutool.core.util.NumberUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.core.util.ZipUtil;
 import com.alibaba.fastjson2.JSON;
 import com.k4ln.debug4j.common.daemon.Debug4jCommand;
 import com.k4ln.debug4j.common.daemon.enums.ExtendedHookType;
@@ -28,6 +31,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.lang.management.ManagementFactory;
+import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -38,6 +42,9 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static com.k4ln.debug4j.common.utils.SocketProtocolUtil.*;
+import static com.k4ln.debug4j.core.client.SocketClient.callbackFileMessage;
 
 @Slf4j
 public class Debug4jProcessOperator {
@@ -56,6 +63,9 @@ public class Debug4jProcessOperator {
 
     /**
      * JFR
+     * 为什么使用Object：通过类隔离防止 JVM 在加载 Debug4jProcessOperator 类时（初始化 recording 变量时）无法解析 jdk.jfr.Recording，导致启动报错
+     * import jdk.jfr.Recording 不会导致异常，JVM 不关心 import
+     * private static jdk.jfr.Recording field 会导致异常，类加载阶段解析类型
      */
     private static Object recording = null;
 
@@ -277,11 +287,11 @@ public class Debug4jProcessOperator {
                 String username = adjustmentContent.get("username");
                 String password = adjustmentContent.get("password");
                 port = openSftpServer(StrUtil.isBlank(username) ? "root" : username, StrUtil.isBlank(password) ? "123456" : password, port);
-                return ProcessAdjustmentInfo.builder().adjustmentResult(Map.of("sftpPort", port + "")).build();
+                return ProcessAdjustmentInfo.builder().adjustmentResult(Map.of("sftpPort", String.valueOf(port))).build();
             }
             case sftp_close -> {
                 int port = closeSftpServer();
-                return ProcessAdjustmentInfo.builder().adjustmentResult(Map.of("sftpPort", port + "")).build();
+                return ProcessAdjustmentInfo.builder().adjustmentResult(Map.of("sftpPort", String.valueOf(port))).build();
             }
             case jvm_heap -> {
                 try {
@@ -336,14 +346,14 @@ public class Debug4jProcessOperator {
                 return ProcessAdjustmentInfo.builder().adjustmentResult(adjustmentResult).build();
             }
             case jvm_list -> {
-                return listFiles("", p -> p.startsWith("debug4j") && (p.endsWith("hprof") || p.endsWith("jfr")), false);
+                return listFiles("", p -> p.startsWith("debug4j") && (p.endsWith("hprof") || p.endsWith("jfr")), false, false);
             }
             case file_list -> {
                 Map<String, String> adjustmentContent = adjustmentReqMessage.getAdjustmentContent();
                 String path = StrUtil.isBlank(adjustmentContent.get("fileDir")) ? "" : adjustmentContent.get("fileDir");
-                return listFiles(path, p -> true, true);
+                return listFiles(path, p -> true, true, Boolean.TRUE.toString().equals(adjustmentContent.get("createIfNotExist")));
             }
-            case file_temporary -> {
+            case file_upload -> {
                 try {
                     Map<String, String> adjustmentContent = adjustmentReqMessage.getAdjustmentContent();
                     String filename = adjustmentContent.get("filename");
@@ -370,6 +380,72 @@ public class Debug4jProcessOperator {
                     e.printStackTrace();
                 }
             }
+            case file_remove -> {
+                try {
+                    Map<String, String> adjustmentContent = adjustmentReqMessage.getAdjustmentContent();
+                    Path path = Paths.get(adjustmentContent.get("fileAbsolutePath")).toAbsolutePath();
+                    if (Files.exists(path)) {
+                        FileUtil.del(path);
+                        return ProcessAdjustmentInfo.builder()
+                                .adjustmentResult(Map.of("//absolutePath", path.toAbsolutePath().toString()))
+                                .build();
+                    } else {
+                        return ProcessAdjustmentInfo.builder()
+                                .adjustmentResult(Map.of("//errMsg", "fileAbsolutePath is not exist"))
+                                .build();
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    return ProcessAdjustmentInfo.builder()
+                            .adjustmentResult(Map.of("//errMsg", e.getClass().getName() + ": " + e.getMessage()))
+                            .build();
+                }
+            }
+            case file_download -> {
+                try {
+                    Map<String, String> adjustmentContent = adjustmentReqMessage.getAdjustmentContent();
+                    Path path = Paths.get(adjustmentContent.get("fileAbsolutePath")).toAbsolutePath();
+                    if (Files.exists(path)) {
+                        File downloadFile;
+                        if (Files.isDirectory(path)) {
+                            File src = path.toFile();
+                            downloadFile = new File(src.getParent(), src.getName() + ".zip");
+                            ZipUtil.zip(path.toAbsolutePath().toString(), downloadFile.getAbsolutePath());
+                        } else {
+                            downloadFile = path.toFile();
+                        }
+                        RandomAccessFile randomAccessFile = new RandomAccessFile(downloadFile.getAbsolutePath(), "r");
+                        long length = randomAccessFile.length();
+                        int maxBodyLength = READ_BUFFER_SIZE - BUFFER_LENGTH - BUFFER_HEADER;
+                        if (length > maxBodyLength) {
+                            double div = NumberUtil.div(length, maxBodyLength, 0, RoundingMode.UP);
+                            int subcontractCount = Double.valueOf(div).intValue();
+                            for (int i = 0; i < length; i += maxBodyLength) {
+                                int bodyLength = Math.min(maxBodyLength, Long.valueOf(length - i).intValue());
+                                byte[] simple = new byte[bodyLength];
+                                randomAccessFile.seek(i);
+                                randomAccessFile.read(simple);
+                                callbackFileMessage(Integer.parseInt(adjustmentContent.get("clientId")), simple, subcontractCount, i / maxBodyLength + 1);
+                            }
+                        } else {
+                            byte[] simple = new byte[Long.valueOf(length).intValue()];
+                            randomAccessFile.seek(0);
+                            randomAccessFile.read(simple);
+                            callbackFileMessage(Integer.parseInt(adjustmentContent.get("clientId")), simple, 1, 1);
+                        }
+                        randomAccessFile.close();
+                    } else {
+                        return ProcessAdjustmentInfo.builder()
+                                .adjustmentResult(Map.of("//errMsg", "fileAbsolutePath is not exist"))
+                                .build();
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    return ProcessAdjustmentInfo.builder()
+                            .adjustmentResult(Map.of("//errMsg", e.getClass().getName() + ": " + e.getMessage()))
+                            .build();
+                }
+            }
         }
         return ProcessAdjustmentInfo.builder().build();
     }
@@ -377,15 +453,39 @@ public class Debug4jProcessOperator {
     /**
      * 获取文件列表
      *
-     * @param dir
+     * @param fileDir
      * @param fileNameFilter
      * @param asc
+     * @param createIfNotExist
      * @return
      */
-    private static ProcessAdjustmentInfo listFiles(String dir, Function<String, Boolean> fileNameFilter, boolean asc) {
-        Path path = Paths.get(dir).toAbsolutePath();
+    private static ProcessAdjustmentInfo listFiles(String fileDir, Function<String, Boolean> fileNameFilter, boolean asc, boolean createIfNotExist) {
+        Path path = Paths.get(fileDir).toAbsolutePath();
         Comparator<Path> comparator = Comparator.comparing((Path p) -> !Files.isDirectory(p))
                 .thenComparing(p -> p.getFileName().toString(), asc ? Comparator.<String>naturalOrder() : Comparator.<String>reverseOrder());
+        if (!Files.exists(path)) {
+            if (createIfNotExist) {
+                try {
+                    Files.createDirectories(path);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    return ProcessAdjustmentInfo.builder()
+                            .adjustmentResult(Map.of("//errMsg", e.getClass().getName() + ": " + e.getMessage()))
+                            .build();
+                }
+            } else {
+                return ProcessAdjustmentInfo.builder()
+                        .adjustmentResult(Map.of("//errMsg", "fileDir is not exist"))
+                        .build();
+            }
+        } else {
+            if (!Files.isDirectory(path)) {
+                ;
+                return ProcessAdjustmentInfo.builder()
+                        .adjustmentResult(Map.of("//errMsg", "fileDir is not directory"))
+                        .build();
+            }
+        }
         Map<String, String> result = new LinkedHashMap<>();
         try (Stream<Path> stream = Files.list(path)) {
             stream.filter(p -> fileNameFilter.apply(p.getFileName().toString()))

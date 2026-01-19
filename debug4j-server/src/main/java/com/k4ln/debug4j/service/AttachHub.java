@@ -7,9 +7,11 @@ import com.k4ln.debug4j.common.daemon.Debug4jMode;
 import com.k4ln.debug4j.common.protocol.command.message.CommandInfoMessage;
 import com.k4ln.debug4j.common.response.exception.abort.BusinessAbort;
 import com.k4ln.debug4j.config.SocketServerProperties;
+import com.k4ln.debug4j.service.dto.AttachFileTask;
 import com.k4ln.debug4j.service.dto.AttachTaskEmitter;
 import com.k4ln.debug4j.socket.SocketServer;
 import jakarta.annotation.Resource;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -28,9 +30,15 @@ public class AttachHub {
     private SocketServerProperties serverProperties;
 
     /**
-     * reqId -> 异步任务
+     * reqId -> 异步任务（1分钟）
      */
     private final TimedCache<String, CompletableFuture<String>> attachTask = CacheUtil.newTimedCache(60 * 1000);
+
+    /**
+     * reqId -> 文件任务（60分钟）
+     */
+    @Getter
+    private final TimedCache<Integer, AttachFileTask> attachFileTask = CacheUtil.newTimedCache(60 * 60 * 1000);
 
     /**
      * filePath -> AttachTaskEmitter
@@ -100,6 +108,27 @@ public class AttachHub {
         CompletableFuture<String> future = attachTask.get(reqId);
         if (future != null) {
             future.complete(data);
+        }
+    }
+
+    /**
+     * 推送文件数据
+     *
+     * @param reqId
+     * @param data
+     * @param completed
+     */
+    public void pushFileResult(Integer reqId, byte[] data, boolean completed) {
+        AttachFileTask fileTask = attachFileTask.get(reqId);
+        if (fileTask != null) {
+            try {
+                fileTask.getQueue().put(data);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            if (completed) {
+                fileTask.setCompleted(true);
+            }
         }
     }
 

@@ -130,7 +130,7 @@ public class SocketClient {
 
             private void handleUploadFile(SocketProtocol socketProtocol) {
                 // 上传文件：新建临时文件，流写入完毕后，再将临时文件移至上传目录（覆盖老文件，删除临时文件）
-                String clientId = socketProtocol.getClientId() + "";
+                String clientId = String.valueOf(socketProtocol.getClientId());
                 FileInfo fileInfo = sessionRandomAccessFile.get(clientId);
                 try {
                     if (socketProtocol.getSubcontract()) {
@@ -296,6 +296,10 @@ public class SocketClient {
 
     public static void callbackMessage(Integer clientId, ProtocolTypeEnum protocolType, byte[] body) {
         SocketProtocolUtil.sendMessage(session, clientId, protocolType, body);
+    }
+
+    public static void callbackFileMessage(Integer clientId, byte[] body, Integer subcontractCount, Integer subcontractIndex) {
+        SocketProtocolUtil.sendFileMessage(session, clientId, body, subcontractCount, subcontractIndex);
     }
 
     public static void clientClose(Integer clientId) {

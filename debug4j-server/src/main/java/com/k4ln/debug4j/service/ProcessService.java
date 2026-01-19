@@ -12,14 +12,19 @@ import com.k4ln.debug4j.common.protocol.command.message.enums.AdjustmentTypeEnum
 import com.k4ln.debug4j.common.protocol.socket.ProtocolTypeEnum;
 import com.k4ln.debug4j.common.response.exception.abort.BusinessAbort;
 import com.k4ln.debug4j.controller.vo.*;
+import com.k4ln.debug4j.service.dto.AttachFileTask;
 import com.k4ln.debug4j.socket.SocketServer;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Component
@@ -116,7 +121,7 @@ public class ProcessService {
                                         .remoteHost("127.0.0.1")
                                         .remotePort(Integer.parseInt(port))
                                         .build());
-                                respVO.getAdjustmentResult().put("sftp_proxy", proxyRespVO.getProxyPort() + "");
+                                respVO.getAdjustmentResult().put("sftp_proxy", String.valueOf(proxyRespVO.getProxyPort()));
                             }
                         }
                     }
@@ -141,7 +146,7 @@ public class ProcessService {
     }
 
     /**
-     * 进程内调整（上传文件）
+     * 上传文件
      *
      * @param multipartFiles
      * @param clientSessionId
@@ -152,6 +157,7 @@ public class ProcessService {
         clientSessionId = attachHub.clientSessionCheck(clientSessionId, socketServer);
         Map<String, String> adjustmentContent = new HashMap<>();
         adjustmentContent.put("fileDir", fileDir);
+        adjustmentContent.put("createIfNotExist", "true");
         ProcessAdjustmentRespVO respVO = adjustment(ProcessAdjustmentReqVO.builder()
                 .clientSessionId(clientSessionId)
                 .adjustmentType(AdjustmentTypeEnum.file_list)
@@ -161,12 +167,12 @@ public class ProcessService {
             for (MultipartFile file : multipartFiles) {
                 int clientId = HashUtil.fnvHash(UUID.fastUUID().toString(true));
                 Map<String, String> fileTemporary = new HashMap<>();
-                fileTemporary.put("clientId", clientId + "");
+                fileTemporary.put("clientId", String.valueOf(clientId));
                 fileTemporary.put("fileDir", fileDir);
                 fileTemporary.put("filename", file.getOriginalFilename());
                 adjustment(ProcessAdjustmentReqVO.builder()
                         .clientSessionId(clientSessionId)
-                        .adjustmentType(AdjustmentTypeEnum.file_temporary)
+                        .adjustmentType(AdjustmentTypeEnum.file_upload)
                         .adjustmentContent(fileTemporary)
                         .build());
                 try {
@@ -182,6 +188,63 @@ public class ProcessService {
                     .build());
         } else {
             throw new BusinessAbort("fileDir query failed");
+        }
+    }
+
+    /**
+     * 下载文件
+     *
+     * @param adjustmentReqVO
+     * @param response
+     */
+    public void adjustmentDownload(ProcessAdjustmentReqVO adjustmentReqVO, HttpServletResponse response) {
+        adjustmentReqVO.setClientSessionId(attachHub.clientSessionCheck(adjustmentReqVO.getClientSessionId(), socketServer));
+        String fileDir = adjustmentReqVO.getAdjustmentContent().get("fileAbsolutePath");
+        ProcessAdjustmentRespVO respVO = adjustment(ProcessAdjustmentReqVO.builder()
+                .clientSessionId(adjustmentReqVO.getClientSessionId())
+                .adjustmentType(AdjustmentTypeEnum.file_list)
+                .adjustmentContent(Map.of("fileDir", fileDir))
+                .build());
+        String reqId = UUID.fastUUID().toString(true);
+        int clientId = HashUtil.fnvHash(reqId);
+        try {
+            if (StrUtil.isNotBlank(fileDir) && respVO != null && respVO.getAdjustmentResult() != null) {
+                fileDir = fileDir.trim();
+                Map<String, String> adjustmentContent = new HashMap<>();
+                adjustmentContent.put("fileAbsolutePath", fileDir);
+                adjustmentContent.put("clientId", String.valueOf(clientId));
+                attachHub.getAttachFileTask().put(clientId, AttachFileTask.builder().build());
+                socketServer.sendMessage(adjustmentReqVO.getClientSessionId(), clientId, ProtocolTypeEnum.COMMAND,
+                        CommandProcessAdjustmentReqMessage.buildCommandProcessAdjustmentReqMessage(reqId,
+                                AdjustmentTypeEnum.file_download, adjustmentContent));
+                response.setContentType("application/octet-stream");
+                String errMsg = respVO.getAdjustmentResult().get("//errMsg");
+                String filename;
+                Path path = Paths.get(fileDir);
+                if (StrUtil.isNotBlank(errMsg) && errMsg.equals("fileDir is not directory")) {
+                    filename = path.normalize().getFileName().toString();
+                } else if (StrUtil.isBlank(errMsg)) {
+                    filename = path.normalize().getFileName().toString() + ".zip";
+                } else {
+                    response.getOutputStream().write("fileDir query failed".getBytes());
+                    response.getOutputStream().flush();
+                    return;
+                }
+                response.setHeader("Content-Disposition", "attachment;filename=" + filename);
+                do {
+                    byte[] take = attachHub.getAttachFileTask().get(clientId).getQueue().poll(100, TimeUnit.MILLISECONDS);
+                    if (take == null) continue;
+                    response.getOutputStream().write(take);
+                    response.getOutputStream().flush();
+                } while (!attachHub.getAttachFileTask().get(clientId).getCompleted() || !attachHub.getAttachFileTask().get(clientId).getQueue().isEmpty());
+            } else {
+                response.getOutputStream().write("fileDir query failed".getBytes());
+                response.getOutputStream().flush();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            attachHub.getAttachFileTask().remove(clientId);
         }
     }
 }

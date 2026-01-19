@@ -132,6 +132,26 @@ public class SocketProtocolUtil {
      * 发送数据
      *
      * @param session
+     * @param clientId
+     * @param body
+     * @param subcontractCount
+     * @param subcontractIndex
+     */
+    public static void sendFileMessage(AioSession session, Integer clientId, byte[] body, Integer subcontractCount, Integer subcontractIndex) {
+        send(session, SocketProtocol.builder()
+                .protocolType(ProtocolTypeEnum.FILE)
+                .subcontract(true)
+                .clientId(clientId)
+                .subcontractCount(subcontractCount)
+                .subcontractIndex(subcontractIndex)
+                .body(body)
+                .build());
+    }
+
+    /**
+     * 发送数据
+     *
+     * @param session
      * @param socketProtocol
      */
     private static void send(AioSession session, SocketProtocol socketProtocol) {

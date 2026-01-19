@@ -41,6 +41,7 @@ public class AttachController {
     /**
      * ping客户端
      *
+     * @param attachPingReqVO
      * @return
      */
     @PostMapping("/ping")
@@ -52,6 +53,7 @@ public class AttachController {
     /**
      * 获取所有类
      *
+     * @param attachClassAllReqVO
      * @return
      */
     @PostMapping("/class")
@@ -166,17 +168,20 @@ public class AttachController {
      * 获取任务详情
      *
      * @param path
+     * @param sessionId
+     * @param token
+     * @param loginId
      * @return
      */
     @GetMapping("/task")
     public SseEmitter getTaskDetails(@RequestParam("path") String path, @RequestParam("sessionId") String sessionId,
                                      @RequestParam("token") String token, @RequestParam("loginId") String loginId) {
-       if (SaManager.getConfig().getHttpBasic().equals(SaBase64Util.decode(token))){
-           return attachHub.getSseEmitter(sessionId + "@" + path, loginId);
-       } else {
-           SaHolder.getResponse().setStatus(401);
-           throw new NotHttpBasicAuthException().setCode(SaErrorCode.CODE_10311);
-       }
+        if (SaManager.getConfig().getHttpBasic().equals(SaBase64Util.decode(token))) {
+            return attachHub.getSseEmitter(sessionId + "@" + path, loginId);
+        } else {
+            SaHolder.getResponse().setStatus(401);
+            throw new NotHttpBasicAuthException().setCode(SaErrorCode.CODE_10311);
+        }
     }
 
 }
