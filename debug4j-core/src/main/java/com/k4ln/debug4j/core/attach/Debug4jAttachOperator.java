@@ -73,6 +73,7 @@ public class Debug4jAttachOperator {
         return SourceCodeInfo.builder()
                 .byteCodeType(byteCodeInfo != null ? byteCodeInfo.getAttachClassByteCodeType() : null)
                 .classSource(classSource)
+                .classMethods(classMethods(instrumentation, className))
                 .build();
     }
 
@@ -178,6 +179,43 @@ public class Debug4jAttachOperator {
             e.printStackTrace();
         }
         return null;
+    }
+
+    /**
+     * 获取类方法
+     *
+     * @param instrumentation
+     * @param className
+     * @return
+     */
+    public static List<String> classMethods(Instrumentation instrumentation, String className) {
+        List<String> classMethods = new ArrayList<>();
+        ByteCodeInfo byteCodeInfo = getClassByteCodeInfo(instrumentation, className);
+        byte[] classByteCodeByCache = getClassByteCodeByCache(SourceCodeTypeEnum.attachClassByteCode, byteCodeInfo);
+        if (classByteCodeByCache != null) {
+            try {
+                ClassPool pool = ClassPool.getDefault();
+                CtClass cc = pool.get(className);
+                if (cc.isFrozen()) {
+                    cc.defrost();
+                }
+                pool.makeClass(new ByteArrayInputStream(classByteCodeByCache));
+                cc = pool.get(className);
+                CtMethod[] declaredMethods = cc.getDeclaredMethods();
+                Map<String, Integer> counter = new HashMap<>();
+                for (CtMethod declaredMethod : declaredMethods) {
+                    int count = counter.merge(declaredMethod.getName(), 1, Integer::sum);
+                    if (count == 1) {
+                        classMethods.add(declaredMethod.getName());
+                    } else {
+                        classMethods.add(declaredMethod.getName() + "#" + count);
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        return classMethods;
     }
 
     /**
@@ -289,8 +327,15 @@ public class Debug4jAttachOperator {
                     }
                     pool.makeClass(new ByteArrayInputStream(classByteCodeByCache));
                     cc = pool.get(className);
+                    int methodIndex = 0;
+                    String realMethodName = lineMethodName;
+                    if (lineMethodName.contains("#")) {
+                        methodIndex = Integer.parseInt(lineMethodName.split("#")[1]) - 1;
+                        realMethodName = lineMethodName.split("#")[0];
+                    }
+                    CtMethod[] declaredMethods = cc.getDeclaredMethods(realMethodName);
                     SortedSet<Integer> set = new TreeSet<>();
-                    CtMethod declaredMethod = cc.getDeclaredMethod(lineMethodName);
+                    CtMethod declaredMethod = declaredMethods[methodIndex];
                     CodeIterator iterator = declaredMethod.getMethodInfo().getCodeAttribute().iterator();
                     while (iterator.hasNext()) {
                         set.add(declaredMethod.getMethodInfo().getLineNumber(iterator.next()));
@@ -300,13 +345,13 @@ public class Debug4jAttachOperator {
                     byte[] bytecode = cc.toBytecode();
                     String sourceCode = jadxByteCodeToSource(className, bytecode);
                     String flagSourceCode = sourceLineFlag(sourceCode);
-                    return MethodLineInfo.builder().sourceCode(flagSourceCode).lineNumbers(set.stream().toList()).build();
+                    return MethodLineInfo.builder().sourceCode(flagSourceCode).classMethods(classMethods(instrumentation, className)).lineNumbers(set.stream().toList()).build();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
             } else {
                 String sourceCode = jadxByteCodeToSource(className, classByteCodeByCache);
-                return MethodLineInfo.builder().sourceCode(sourceCode).lineNumbers(new ArrayList<>()).build();
+                return MethodLineInfo.builder().sourceCode(sourceCode).classMethods(classMethods(instrumentation, className)).lineNumbers(new ArrayList<>()).build();
             }
         }
         return MethodLineInfo.builder().build();
@@ -330,7 +375,7 @@ public class Debug4jAttachOperator {
                 Matcher matcher = pattern.matcher(str);
                 if (matcher.find()) {
                     String group = matcher.group();
-                    String newLine = str.replace(group, "/* next line number is: " + matcher.group(1) + " */");
+                    String newLine = str.replace(group, "/* next real line number is: " + matcher.group(1) + " */");
                     lineMap.remove(newLine);
                     lineMap.put(newLine, newLine + lineSeparator);
                 } else {

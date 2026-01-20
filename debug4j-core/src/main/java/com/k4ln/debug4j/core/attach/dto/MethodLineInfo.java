@@ -19,6 +19,11 @@ public class MethodLineInfo {
     private String sourceCode;
 
     /**
+     * 源码方法列表
+     */
+    private List<String> classMethods;
+
+    /**
      * 行号
      */
     private List<Integer> lineNumbers;

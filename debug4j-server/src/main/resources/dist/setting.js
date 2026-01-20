@@ -1,3 +1,3 @@
 window.settings = {
-    // baseURL: "http://192.168.1.164:7987"
+    // baseURL: "http://127.0.0.1:7987"
 }

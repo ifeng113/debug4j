@@ -117,6 +117,12 @@ public class Debug4jClassFileTransformer implements ClassFileTransformer {
                 return byteCodeInfo.getAttachClassByteCode();
             } else if (commandType.equals(CommandTypeEnum.ATTACH_REQ_CLASS_RELOAD_JAVA_LINE)) {
                 try {
+                    int methodIndex = 0;
+                    String realMethodName = lineMethodName;
+                    if (lineMethodName.contains("#")) {
+                        methodIndex = Integer.parseInt(lineMethodName.split("#")[1]) - 1;
+                        realMethodName = lineMethodName.split("#")[0];
+                    }
                     ClassPool pool = ClassPool.getDefault();
                     CtClass cc = pool.get(transformerClassName);
                     if (cc.isFrozen()) {
@@ -124,7 +130,8 @@ public class Debug4jClassFileTransformer implements ClassFileTransformer {
                     }
                     pool.makeClass(new ByteArrayInputStream(byteCodeInfo.getAttachClassByteCode()));
                     cc = pool.get(transformerClassName);
-                    CtMethod declaredMethod = cc.getDeclaredMethod(lineMethodName);
+                    CtMethod[] declaredMethods = cc.getDeclaredMethods(realMethodName);
+                    CtMethod declaredMethod = declaredMethods[methodIndex];
                     declaredMethod.insertAt(lineNumber, sourceCode);
                     byte[] bytecode = cc.toBytecode();
                     byteCodeInfo.setAttachClassByteCode(bytecode);

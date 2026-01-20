@@ -4,6 +4,7 @@ package com.k4ln.demo2.controller;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 
@@ -26,5 +27,11 @@ public class Demo2Controller {
         log.warn("------------warn------------");
         log.error("------------error------------");
         return "demo2";
+    }
+
+    @GetMapping("/p")
+    public String demo2(@RequestParam(required = false) String p) {
+        log.error("------------param------------");
+        return "demo2_c";
     }
 }

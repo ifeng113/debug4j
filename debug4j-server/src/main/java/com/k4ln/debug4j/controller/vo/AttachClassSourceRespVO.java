@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -16,6 +18,11 @@ public class AttachClassSourceRespVO {
      * 源码
      */
     private String classSource;
+
+    /**
+     * 源码方法列表
+     */
+    private List<String> classMethods;
 
     /**
      * 字节码类型

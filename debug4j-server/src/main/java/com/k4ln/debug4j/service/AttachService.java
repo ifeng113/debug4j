@@ -78,6 +78,7 @@ public class AttachService {
             return AttachClassSourceRespVO.builder()
                     .byteCodeType(attachResp.getByteCodeType())
                     .classSource(attachResp.getSourceCode())
+                    .classMethods(attachResp.getClassMethods())
                     .build();
         }
         return null;
@@ -159,6 +160,7 @@ public class AttachService {
             return AttachClassSourceRespVO.builder()
                     .byteCodeType(attachResp.getByteCodeType())
                     .classSource(attachResp.getSourceCode())
+                    .classMethods(attachResp.getClassMethods())
                     .build();
         }
         return null;
@@ -192,6 +194,7 @@ public class AttachService {
                     return AttachClassSourceRespVO.builder()
                             .byteCodeType(attachResp.getByteCodeType())
                             .classSource(attachResp.getSourceCode())
+                            .classMethods(attachResp.getClassMethods())
                             .build();
                 }
             } catch (Exception e) {
@@ -219,6 +222,7 @@ public class AttachService {
             return AttachClassSourceRespVO.builder()
                     .byteCodeType(attachResp.getByteCodeType())
                     .classSource(attachResp.getSourceCode())
+                    .classMethods(attachResp.getClassMethods())
                     .build();
         }
         return null;
@@ -242,6 +246,7 @@ public class AttachService {
             return AttachClassSourceLineRespVO.builder()
                     .classSource(attachResp.getSourceCode())
                     .lineNumbers(attachResp.getLineNumbers())
+                    .classMethods(attachResp.getClassMethods())
                     .build();
         }
         return null;
@@ -267,6 +272,7 @@ public class AttachService {
             return AttachClassSourceLineRespVO.builder()
                     .classSource(attachResp.getSourceCode())
                     .lineNumbers(attachResp.getLineNumbers())
+                    .classMethods(attachResp.getClassMethods())
                     .build();
         }
         return null;

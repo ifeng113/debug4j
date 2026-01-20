@@ -28,6 +28,11 @@ public class CommandAttachRespMessage {
     private String sourceCode;
 
     /**
+     * 源码方法列表
+     */
+    private List<String> classMethods;
+
+    /**
      * 字节码类型
      */
     private ByteCodeTypeEnum byteCodeType;
@@ -53,25 +58,27 @@ public class CommandAttachRespMessage {
         ).getBytes();
     }
 
-    public static byte[] buildClassSourceRespMessage(String reqId, String sourceCode, ByteCodeTypeEnum byteCodeType) {
+    public static byte[] buildClassSourceRespMessage(String reqId, String sourceCode, List<String> classMethods, ByteCodeTypeEnum byteCodeType) {
         return (JSON.toJSONString(Command.builder()
                 .command(CommandTypeEnum.ATTACH_RESP_CLASS_SOURCE)
                 .data(CommandAttachRespMessage.builder()
                         .reqId(reqId)
                         .sourceCode(sourceCode)
+                        .classMethods(classMethods)
                         .byteCodeType(byteCodeType)
                         .build())
                 .build())
         ).getBytes();
     }
 
-    public static byte[] buildClassSourceLineRespMessage(String reqId, String sourceCode, List<Integer> lineNumbers) {
+    public static byte[] buildClassSourceLineRespMessage(String reqId, String sourceCode, List<String> classMethods, List<Integer> lineNumbers) {
         return (JSON.toJSONString(Command.builder()
                 .command(CommandTypeEnum.ATTACH_RESP_CLASS_SOURCE_LINE)
                 .data(CommandAttachRespMessage.builder()
                         .reqId(reqId)
                         .sourceCode(sourceCode)
                         .lineNumbers(lineNumbers)
+                        .classMethods(classMethods)
                         .build())
                 .build())
         ).getBytes();
