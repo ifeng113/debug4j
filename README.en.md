@@ -14,7 +14,7 @@ integration.
 ## Features
 
 - **Proxy Penetration Service**: Enables remote proxy penetration in isolated environments like Docker and Kubernetes.
-- **JWDP Remote Debugging**: Simplifies remote debugging configuration.
+- **JDWP Remote Debugging**: Simplifies remote debugging configuration.
 - **Log File Monitoring**: Retrieves real-time application log information.
 - **Class and Source Code Reading**: Dynamically loads and parses target program classes and source code.
 - **Source Code Hot Update**: Supports runtime dynamic updates to source code.

@@ -47,6 +47,11 @@ public class CommandAttachRespMessage {
      */
     private List<String> classNames;
 
+    /**
+     * 状态（成功/失败）
+     */
+    private Boolean status;
+
     public static byte[] buildClassAllRespMessage(String reqId, List<String> classNames) {
         return (JSON.toJSONString(Command.builder()
                 .command(CommandTypeEnum.ATTACH_RESP_CLASS_ALL)
@@ -58,7 +63,7 @@ public class CommandAttachRespMessage {
         ).getBytes();
     }
 
-    public static byte[] buildClassSourceRespMessage(String reqId, String sourceCode, List<String> classMethods, ByteCodeTypeEnum byteCodeType) {
+    public static byte[] buildClassSourceRespMessage(String reqId, String sourceCode, List<String> classMethods, ByteCodeTypeEnum byteCodeType, Boolean status) {
         return (JSON.toJSONString(Command.builder()
                 .command(CommandTypeEnum.ATTACH_RESP_CLASS_SOURCE)
                 .data(CommandAttachRespMessage.builder()
@@ -66,6 +71,7 @@ public class CommandAttachRespMessage {
                         .sourceCode(sourceCode)
                         .classMethods(classMethods)
                         .byteCodeType(byteCodeType)
+                        .status(status)
                         .build())
                 .build())
         ).getBytes();

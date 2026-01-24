@@ -161,6 +161,7 @@ public class AttachService {
                     .byteCodeType(attachResp.getByteCodeType())
                     .classSource(attachResp.getSourceCode())
                     .classMethods(attachResp.getClassMethods())
+                    .status(attachResp.getStatus())
                     .build();
         }
         return null;
@@ -195,6 +196,7 @@ public class AttachService {
                             .byteCodeType(attachResp.getByteCodeType())
                             .classSource(attachResp.getSourceCode())
                             .classMethods(attachResp.getClassMethods())
+                            .status(attachResp.getStatus())
                             .build();
                 }
             } catch (Exception e) {

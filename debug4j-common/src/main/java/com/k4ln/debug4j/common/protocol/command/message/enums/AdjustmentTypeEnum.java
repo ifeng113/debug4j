@@ -14,4 +14,5 @@ public enum AdjustmentTypeEnum {
     file_upload,            // 上传文件
     file_remove,            // 删除文件（夹）
     file_download,          // 下载文件（夹）
+    obj_test,               // 对象操作测试
 }

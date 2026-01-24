@@ -151,12 +151,17 @@ public class Debug4jClassFileTransformer implements ClassFileTransformer {
         File file = new File(FileUtils.createTempDir(), transformerClassName.substring(transformerClassName.lastIndexOf('.') + 1) + ".java");
         FileWriter.create(file).write(sourceCode);
         JavaSourceCompiler javaSourceCompiler = CompilerUtil.getCompiler(loader).addSource(file);
-        ResourceClassLoader classLoader = (ResourceClassLoader) javaSourceCompiler.compile();
-        Map resourceMap = classLoader.getResourceMap();
-        Resource resource = (Resource) resourceMap.get(transformerClassName);
-        file.deleteOnExit();
-        byte[] bytes = resource.readBytes();
-        byteCodeInfo.setAttachClassByteCode(bytes);
+        try {
+            ResourceClassLoader classLoader = (ResourceClassLoader) javaSourceCompiler.compile();
+            Map resourceMap = classLoader.getResourceMap();
+            Resource resource = (Resource) resourceMap.get(transformerClassName);
+            byte[] bytes = resource.readBytes();
+            byteCodeInfo.setAttachClassByteCode(bytes);
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            file.deleteOnExit();
+        }
         future.complete(byteCodeInfo);
         return byteCodeInfo.getAttachClassByteCode();
     }

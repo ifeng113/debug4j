@@ -42,6 +42,9 @@ dependencies {
     // Arthas Spring Boot Starter TEST
 //    implementation 'com.taobao.arthas:arthas-spring-boot-starter:4.1.5'
 
+    // AOP TEST
+    implementation 'org.springframework.boot:spring-boot-starter-aop'
+
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }

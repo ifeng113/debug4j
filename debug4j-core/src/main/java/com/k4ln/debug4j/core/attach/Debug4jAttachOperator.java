@@ -1,5 +1,6 @@
 package com.k4ln.debug4j.core.attach;
 
+import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
 import com.k4ln.debug4j.common.protocol.command.CommandTypeEnum;
 import com.k4ln.debug4j.common.protocol.command.message.enums.ByteCodeTypeEnum;
@@ -52,7 +53,7 @@ public class Debug4jAttachOperator {
     public static List<String> getAllClass(Instrumentation instrumentation, String configPackageName, String packageName) {
         List<String> classes = new ArrayList<>();
         for (Class allLoadedClass : instrumentation.getAllLoadedClasses()) {
-            if (!allLoadedClass.getName().contains("$") // 过滤内部类
+            if (!allLoadedClass.getName().contains("$") // 过滤代理类及内部类
                     && (StrUtil.isBlank(packageName) ? allLoadedClass.getName().startsWith(configPackageName) : allLoadedClass.getName().startsWith(packageName))) {
                 classes.add(allLoadedClass.getName());
             }
@@ -170,11 +171,13 @@ public class Debug4jAttachOperator {
             jadxArgs.setCodeNewLineStr("\n");
             JadxDecompiler jadx = new JadxDecompiler(jadxArgs);
             jadx.load();
+            String sourceCode = null;
             for (JavaClass cls : jadx.getClasses()) {
-                return cls.getCode();
+                sourceCode = cls.getCode();
             }
             jadx.close();
             file.deleteOnExit();
+            return sourceCode;
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -224,20 +227,25 @@ public class Debug4jAttachOperator {
      * @param instrumentation
      * @param className
      * @param sourceCode
+     * @return
      */
-    public static void sourceReload(Instrumentation instrumentation, String className, String sourceCode) {
+    public static boolean sourceReload(Instrumentation instrumentation, String className, String sourceCode) {
+        ByteCodeInfo byteCodeInfo = getClassByteCodeInfo(instrumentation, className);
+        ByteCodeInfo orginalByteCodeInfo = BeanUtil.copyProperties(byteCodeInfo, ByteCodeInfo.class);
         try {
-            ByteCodeInfo byteCodeInfo = getClassByteCodeInfo(instrumentation, className);
             if (byteCodeInfo != null && !byteCodeInfo.getAttachClassByteCodeType().equals(ByteCodeTypeEnum.agentWithByteBuddy)) {
                 CompletableFuture<ByteCodeInfo> future = new CompletableFuture<>();
                 Debug4jClassFileTransformer debug4jClassFileTransformer = new Debug4jClassFileTransformer(className,
                         CommandTypeEnum.ATTACH_REQ_CLASS_RELOAD_JAVA, sourceCode, null, future, byteCodeInfo);
                 reTransformer(instrumentation, className, debug4jClassFileTransformer);
                 realByteCodeMap.put(className, future.get(30, TimeUnit.SECONDS));
+                return true;
             }
         } catch (Exception e) {
             e.printStackTrace();
+            realByteCodeMap.put(className, orginalByteCodeInfo);
         }
+        return false;
     }
 
     /**
@@ -246,20 +254,25 @@ public class Debug4jAttachOperator {
      * @param instrumentation
      * @param className
      * @param byteCode
+     * @return
      */
-    public static void classReload(Instrumentation instrumentation, String className, String byteCode) {
+    public static boolean classReload(Instrumentation instrumentation, String className, String byteCode) {
+        ByteCodeInfo byteCodeInfo = getClassByteCodeInfo(instrumentation, className);
+        ByteCodeInfo orginalByteCodeInfo = BeanUtil.copyProperties(byteCodeInfo, ByteCodeInfo.class);
         try {
-            ByteCodeInfo byteCodeInfo = getClassByteCodeInfo(instrumentation, className);
             if (byteCodeInfo != null && !byteCodeInfo.getAttachClassByteCodeType().equals(ByteCodeTypeEnum.agentWithByteBuddy)) {
                 CompletableFuture<ByteCodeInfo> future = new CompletableFuture<>();
                 Debug4jClassFileTransformer debug4jClassFileTransformer = new Debug4jClassFileTransformer(className,
                         CommandTypeEnum.ATTACH_REQ_CLASS_RELOAD, null, byteCode, future, byteCodeInfo);
                 reTransformer(instrumentation, className, debug4jClassFileTransformer);
                 realByteCodeMap.put(className, future.get(30, TimeUnit.SECONDS));
+                return true;
             }
         } catch (Exception e) {
             e.printStackTrace();
+            realByteCodeMap.put(className, orginalByteCodeInfo);
         }
+        return false;
     }
 
     /**

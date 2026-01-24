@@ -3,6 +3,7 @@ package com.k4ln.debug4j.core.attach.jvm;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.net.NetUtil;
 import cn.hutool.core.util.NumberUtil;
+import cn.hutool.core.util.ReflectUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.core.util.ZipUtil;
 import com.alibaba.fastjson2.JSON;
@@ -11,11 +12,13 @@ import com.k4ln.debug4j.common.daemon.enums.ExtendedHookType;
 import com.k4ln.debug4j.common.daemon.enums.ReloadMode;
 import com.k4ln.debug4j.common.protocol.command.message.CommandProcessAdjustmentReqMessage;
 import com.k4ln.debug4j.common.protocol.command.message.CommandProcessReqMessage;
+import com.k4ln.debug4j.common.utils.SocketProtocolUtil;
 import com.k4ln.debug4j.common.utils.StringUtils;
 import com.k4ln.debug4j.core.Debugger;
 import com.k4ln.debug4j.core.attach.dto.FileInfo;
 import com.k4ln.debug4j.core.attach.dto.ProcessAdjustmentInfo;
 import com.k4ln.debug4j.core.attach.dto.ProcessArgsInfo;
+import com.k4ln.debug4j.core.attach.dto.TaskInfo;
 import com.k4ln.debug4j.core.attach.jvm.logger.LoggerInfo;
 import com.k4ln.debug4j.core.attach.jvm.logger.LoggerOperator;
 import com.sun.management.HotSpotDiagnosticMXBean;
@@ -31,6 +34,9 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.lang.management.ManagementFactory;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -446,8 +452,81 @@ public class Debug4jProcessOperator {
                             .build();
                 }
             }
+            case obj_test -> {
+                printStaticMembers(SocketProtocolUtil.class);
+            }
         }
         return ProcessAdjustmentInfo.builder().build();
+    }
+
+    /**
+     * 禁止final变量修改
+     *
+     * @param clazz
+     */
+    public static void printStaticMembers(Class<?> clazz) {
+        // --------------  变量  --------------
+        for (Field field : clazz.getDeclaredFields()) {
+            if (Modifier.isStatic(field.getModifiers())) {
+                field.setAccessible(true);
+                try {
+                    System.out.println("[FIELD] " + field.getType().getName() + " " + field.getName() + " = " + field.get(null));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        Object fieldValue = ReflectUtil.getFieldValue(SocketProtocolUtil.class, "READ_BUFFER_SIZE");
+
+        for (Method method : clazz.getDeclaredMethods()) {
+            if (Modifier.isStatic(method.getModifiers())) {
+                System.out.println("[METHOD] " + method.getName());
+            }
+        }
+
+        Debug4jCommand debug4jCommand = Debugger.getDebug4jCommand();
+        if (debug4jCommand.getExtendedHook() != null && debug4jCommand.getExtendedHook().get(ExtendedHookType.HOOK_REFLECT) != null) {
+            Object bean = debug4jCommand.getExtendedHook().get(ExtendedHookType.HOOK_REFLECT).apply("demo2Controller");
+            Object fieldValue2 = ReflectUtil.getFieldValue(bean, "key");
+            ReflectUtil.setFieldValue(bean, "key", "value");
+
+            // --------------  函数  --------------
+            try {
+
+                Method demoMethod1 = bean.getClass().getMethod("demo2");
+                Method demoMethod2 = ReflectUtil.getMethod(bean.getClass(), "demo2");
+                Method demoMethod3 = ReflectUtil.getMethodByName(bean.getClass(), "demo2");
+                Object oo1 = ReflectUtil.invokeRaw(bean, demoMethod1);
+                Object oo2 = ReflectUtil.invokeRaw(bean, demoMethod2);
+                Object oo3 = ReflectUtil.invokeRaw(bean, demoMethod3);
+
+                Method staticMethod1 = ReflectUtil.getMethod(StringUtils.class, "extractPort"); // 获取为null
+                Method staticMethod2 = ReflectUtil.getMethod(StringUtils.class, "extractPort", String.class);
+                Method staticMethod3 = ReflectUtil.getMethodByName(StringUtils.class, "extractPort");
+                Method staticMethod4 = StringUtils.class.getMethod("extractPort", String.class);
+
+                Object ok2 = ReflectUtil.invokeRaw(null, staticMethod2, "address=127.0.0.1:5002");
+                Object ok3 = ReflectUtil.invokeRaw(null, staticMethod3, "address=127.0.0.1:5003");
+                Object ok4 = ReflectUtil.invokeRaw(null, staticMethod4, "address=127.0.0.1:5004");
+
+                // 非spring对象支持不传递参数类型
+                TaskInfo taskInfo = new TaskInfo();
+                taskInfo.setReqId("77777");
+                Method objMethod1 = taskInfo.getClass().getMethod("getReqId");
+                Method objMethod2 = ReflectUtil.getMethod(taskInfo.getClass(), "getReqId");
+                Method objMethod3 = ReflectUtil.getMethodByName(taskInfo.getClass(), "getReqId");
+
+                // TODO 同名方法，调用哪个？ -> 返回方法签名 通过（JADS）反编译获取 方法签名信息
+                // TODO 执行钩子函数前先获取所有函数（返回值、名称、参数），有返回值的返回执行结果
+                // TODO 验证参数使用json，调用目标方法
+                // TODO 执行代码块（bytebuddy支持类签名修改）【钩子增强】
+
+                log.info("sa");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     /**

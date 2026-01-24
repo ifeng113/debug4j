@@ -29,4 +29,9 @@ public class AttachClassSourceRespVO {
      */
     private ByteCodeTypeEnum byteCodeType;
 
+    /**
+     * 状态（成功/失败）
+     */
+    private Boolean status;
+
 }

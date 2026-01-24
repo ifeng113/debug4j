@@ -15,9 +15,13 @@ docker run -d -p 33999:33999 -e JAVA_OPTIONS='-Ddebug4j.host=10.0.0.14 -agentlib
 2、debug4j-boot（进程代理模式），在更改代码后需要对debug4j-boot与debug4j-packing进行shadowJar，因为debug4j-daemon是通过创建java子进程（debug4j-packing压缩包中的debug4j-boot.jar）运行的，而不是源码编译运行
 - 后续考虑debug4j-boot启动增加版本号相关打印，以方便确认maven中央仓库中的debug4j-packing包含的debug4j-boot.jar是否为相应版本
 
-3、字节码热更新请注意class文件的jdk编译版本兼容问题，版本不不兼容无法如热更新；同时-javaagent指定的agent编译版本也需要保持与主程序的JDK版本兼容
+3、字节码热更新请注意class文件的jdk编译版本兼容问题，版本不兼容无法如热更新；同时-javaagent指定的agent编译版本也需要保持与主程序的JDK版本兼容
 
-4、无论是代码热更新还是字节码热更新均无法修改字段名和方法名等修改类签名行为（jvm支持新增方法与变量，不支持删除方法与变量[修改可以理解成删除再新增]，debug4j暂时仅支持方法体内的代码变更），强制修改会导致热更新失败
+4、debug4j无论是代码热更新还是字节码热更新均无法修改字段名和方法名等修改类签名行为，强制修改会导致热更新失败
+- 在JVM中，已经加载的类结构（字段、方法）是固定的，类的签名信息已经固定了
+- instrumentation.retransformClasses不支持涉及到类签名信息的新增、修改及删除（已定义的类签名信息：包含变量类型、变量名、方法名称、方法参数、方法返回值）
+- 通过javassist/ByteBuddy可以实现动态新增方法或变量，但都是直接生成一个新的Class对象，无法对JVM原有的类直接进行加强（原有代码无法直接使用新类）
+- debug4j暂时不考虑适配涉及改变类签名的相关功能，debug4j更侧重于对方法体内的修改（偏调试方向，而非热编码业务方向）
 
 5、前端换行使用\n作为换行标识
 
