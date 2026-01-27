@@ -113,7 +113,9 @@ public class Debug4jClassFileTransformer implements ClassFileTransformer {
             } else if (commandType.equals(CommandTypeEnum.ATTACH_REQ_CLASS_RESTORE)) {
                 byte[] defaultByteCode = getDefaultByteCode(byteCodeInfo);
                 byteCodeInfo.setAttachClassByteCode(defaultByteCode);
-                future.complete(byteCodeInfo);
+                if (future != null) {
+                    future.complete(byteCodeInfo);
+                }
                 return byteCodeInfo.getAttachClassByteCode();
             } else if (commandType.equals(CommandTypeEnum.ATTACH_REQ_CLASS_RELOAD_JAVA_LINE)) {
                 try {
@@ -148,7 +150,11 @@ public class Debug4jClassFileTransformer implements ClassFileTransformer {
     }
 
     private byte[] compilerSourceCodeByCacheClass(ClassLoader loader) {
-        File file = new File(FileUtils.createTempDir(), transformerClassName.substring(transformerClassName.lastIndexOf('.') + 1) + ".java");
+        String transformerOuterClassName = transformerClassName;
+        if (transformerClassName.contains("$")) {
+            transformerOuterClassName = transformerClassName.substring(0, transformerClassName.indexOf("$"));
+        }
+        File file = new File(FileUtils.createTempDir(), transformerOuterClassName.substring(transformerOuterClassName.lastIndexOf('.') + 1) + ".java");
         FileWriter.create(file).write(sourceCode);
         JavaSourceCompiler javaSourceCompiler = CompilerUtil.getCompiler(loader).addSource(file);
         try {
@@ -162,7 +168,9 @@ public class Debug4jClassFileTransformer implements ClassFileTransformer {
         } finally {
             file.deleteOnExit();
         }
-        future.complete(byteCodeInfo);
+        if (future != null) {
+            future.complete(byteCodeInfo);
+        }
         return byteCodeInfo.getAttachClassByteCode();
     }
 

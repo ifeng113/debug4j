@@ -4,6 +4,10 @@ import cn.hutool.core.util.RandomUtil;
 import com.k4ln.debug4j.common.daemon.Debug4jCommand;
 import com.k4ln.debug4j.common.daemon.enums.ReloadMode;
 import com.k4ln.debug4j.daemon.Debug4jDaemon;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import static com.k4ln.debug4j.common.daemon.Debug4jCommand.loadDebug4jCommand;
@@ -45,10 +49,22 @@ public class Demo1DaemonMain {
         try {
             Dog dog = Dog.builder().name(RandomUtil.randomNumbers(4)).age(i).build();
             Thread.sleep(5000);
+            Demo1Dto w1 = Demo1Dto.builder().key(i + "").build();
+            log.info(w1.getKey());
             log.info("random tid:{} pid:{} index:{} dog:{}", Thread.currentThread().getId(), ProcessHandle.current().pid(), i, dog.toString());
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Demo1Dto {
+
+        @Builder.Default
+        String key = "777";
     }
 
 }

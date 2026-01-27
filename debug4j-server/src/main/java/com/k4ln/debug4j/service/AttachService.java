@@ -180,6 +180,8 @@ public class AttachService {
         clientSessionId = attachHub.clientSessionCheck(clientSessionId, socketServer);
         if (classFile != null && StrUtil.isNotBlank(classFile.getOriginalFilename())) {
             try {
+                String packageName = className.substring(0, className.lastIndexOf("."));
+                String realClassName = packageName + "." + classFile.getOriginalFilename().substring(0, classFile.getOriginalFilename().lastIndexOf("."));
                 File file = new File(FileUtils.createTempDir(), classFile.getOriginalFilename());
                 classFile.transferTo(file);
                 byte[] bytes = Files.readAllBytes(file.toPath());
@@ -188,7 +190,7 @@ public class AttachService {
                 String finalClientSessionId = clientSessionId;
                 CommandAttachRespMessage attachResp = attachHub.syncResult(reqId, () ->
                                 socketServer.sendMessage(finalClientSessionId, HashUtil.fnvHash(reqId), ProtocolTypeEnum.COMMAND,
-                                        CommandAttachReqMessage.buildClassReloadMessage(reqId, className, byteCode)),
+                                        CommandAttachReqMessage.buildClassReloadMessage(reqId, realClassName, byteCode)),
                         CommandAttachRespMessage.class);
                 file.deleteOnExit();
                 if (attachResp != null) {
@@ -263,8 +265,7 @@ public class AttachService {
     public AttachClassSourceLineRespVO patchMethodLine(AttachClassPathLineReqVO pathLineReqVO) {
         pathLineReqVO.setClientSessionId(attachHub.clientSessionCheck(pathLineReqVO.getClientSessionId(), socketServer));
         String reqId = UUID.fastUUID().toString(true);
-        String sourceCode = "{" + pathLineReqVO.getSourceCode() + ";" +
-                "com.k4ln.debug4j.common.daemon.Debug4jLine.tag(" + pathLineReqVO.getLineNumber() + ");}";
+        String sourceCode = "{" + pathLineReqVO.getSourceCode() + ";}";
         CommandAttachRespMessage attachResp = attachHub.syncResult(reqId, () ->
                         socketServer.sendMessage(pathLineReqVO.getClientSessionId(), HashUtil.fnvHash(reqId), ProtocolTypeEnum.COMMAND,
                                 CommandAttachReqMessage.buildClassPatchMethodLineMessage(reqId, pathLineReqVO.getClassName(),

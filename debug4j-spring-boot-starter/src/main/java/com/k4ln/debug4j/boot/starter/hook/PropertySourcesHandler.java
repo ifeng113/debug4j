@@ -103,7 +103,7 @@ public class PropertySourcesHandler {
      * @param adjustmentProperties
      * @return
      */
-    public static synchronized Map<String, String> adjustmentProperties(ConfigurableEnvironment environment, Object adjustmentProperties) {
+    public synchronized static Map<String, String> adjustmentProperties(ConfigurableEnvironment environment, Object adjustmentProperties) {
         MutablePropertySources sources = environment.getPropertySources();
         if (!sources.contains(SOURCE_NAME)) {
             sources.addFirst(new MapPropertySource(SOURCE_NAME, SOURCE_DATA));

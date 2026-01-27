@@ -2,10 +2,6 @@ package com.k4ln.demo2.controller;
 
 
 import com.k4ln.demo2.aop.TestAop;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,8 +18,8 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @Slf4j
 @RestController
-@RequestMapping("/demo2")
-public class Demo2Controller {
+@RequestMapping("/demo2_cp")
+public class Demo2CopyController {
 
     @Value("${debug4j.key}")
     String key;
@@ -36,29 +32,14 @@ public class Demo2Controller {
         log.info("------------info------------");
         log.warn("------------warn------------");
         log.error("------------error------------");
-        Demo2ControllerDto demo2ControllerDto = Demo2ControllerDto.builder().key("w2").build();
-        log.info("222:{}", demo2ControllerDto.getKey());
-        demo2ControllerDto.logTest();
-        return "demo2";
+        return "demo2_cp";
     }
 
     @GetMapping("/p")
     public String demo2(@RequestParam(required = false) String p) {
         log.error("------------param------------");
-        return "demo2_p";
+        return "demo2_cp_p";
     }
 
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Demo2ControllerDto {
 
-        @Builder.Default
-        String key = "777";
-
-        private void logTest() {
-            log.info("key:{}", key);
-        }
-    }
 }

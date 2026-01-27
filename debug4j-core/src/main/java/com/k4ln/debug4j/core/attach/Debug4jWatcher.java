@@ -31,9 +31,7 @@ public class Debug4jWatcher {
 
     public Debug4jWatcher() {
         // 仅过期移除触发
-        watcher.setListener((key, cachedObject) -> {
-            cachedObject.getTailer().stop();
-        });
+        watcher.setListener((key, cachedObject) -> cachedObject.getTailer().stop());
     }
 
     /**
@@ -66,7 +64,7 @@ public class Debug4jWatcher {
      * @param reqMessage
      * @return
      */
-    public static List<CommandTaskReqMessage> openTask(CommandTaskReqMessage reqMessage) {
+    public synchronized static List<CommandTaskReqMessage> openTask(CommandTaskReqMessage reqMessage) {
         File file = FileUtil.file(reqMessage.getFilePath());
         if (!file.exists()) {
             reqMessage.setFilePath(file.getAbsolutePath() + " not exists");
@@ -105,7 +103,7 @@ public class Debug4jWatcher {
      * @param reqMessage
      * @return
      */
-    public static List<CommandTaskReqMessage> closeTask(CommandTaskReqMessage reqMessage) {
+    public synchronized static List<CommandTaskReqMessage> closeTask(CommandTaskReqMessage reqMessage) {
         TaskInfo taskInfo = watcher.get(reqMessage.getFilePath());
         if (taskInfo != null) {
             taskInfo.getTailer().stop();

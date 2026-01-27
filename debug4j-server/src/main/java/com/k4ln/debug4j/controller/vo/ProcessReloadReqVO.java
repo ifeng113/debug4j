@@ -18,7 +18,6 @@ import java.util.List;
  * application.yaml(properties)
  * bootstrap.yaml
  * defaultProperties              ← 最低
- *  TODO 打印spring全参数；验证nacos等参数优先级（低于命令行与jvm）、覆盖顺序、获取（配置中心参数）方式、perporty是否会更新spring变量
  */
 @Data
 @Builder

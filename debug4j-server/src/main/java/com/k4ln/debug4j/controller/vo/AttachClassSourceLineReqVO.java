@@ -26,8 +26,8 @@ public class AttachClassSourceLineReqVO {
 
     /**
      * 行号所在方法名
-     * <p>ByteBuddy方式方法名为动态，因此需要先不使用方法名进行源码查询</p>
      */
+    @NotBlank
     private String lineMethodName;
 
 }

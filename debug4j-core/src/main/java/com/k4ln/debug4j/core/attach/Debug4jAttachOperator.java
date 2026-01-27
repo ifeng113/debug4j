@@ -26,12 +26,17 @@ import java.io.InputStream;
 import java.lang.instrument.Instrumentation;
 import java.lang.instrument.UnmodifiableClassException;
 import java.net.URL;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Slf4j
 public class Debug4jAttachOperator {
@@ -41,6 +46,18 @@ public class Debug4jAttachOperator {
      */
     @Getter
     private static final Map<String, ByteCodeInfo> realByteCodeMap = new ConcurrentHashMap<>();
+
+    /**
+     * className -> classURL
+     */
+    @Getter
+    private static final Map<String, Map<String, URL>> classURLMap = new ConcurrentHashMap<>();
+
+    /**
+     * className -> method
+     */
+    @Getter
+    private static final Map<String, List<String>> classMethodMap = new ConcurrentHashMap<>();
 
     /**
      * 获取所有class名称
@@ -70,7 +87,8 @@ public class Debug4jAttachOperator {
      */
     public static SourceCodeInfo getClassSource(Instrumentation instrumentation, String className, SourceCodeTypeEnum sourceCodeType) {
         ByteCodeInfo byteCodeInfo = getClassByteCodeInfo(instrumentation, className);
-        String classSource = jadxByteCodeToSource(className, getClassByteCodeByCache(sourceCodeType, byteCodeInfo));
+//        String classSource = jadxByteCodeToSource(className, getClassByteCodeByCache(sourceCodeType, byteCodeInfo));
+        String classSource = jadxByteCodeToSourceWithInner(instrumentation, className, sourceCodeType);
         return SourceCodeInfo.builder()
                 .byteCodeType(byteCodeInfo != null ? byteCodeInfo.getAttachClassByteCodeType() : null)
                 .classSource(classSource)
@@ -85,7 +103,7 @@ public class Debug4jAttachOperator {
      * @param className
      * @return
      */
-    public static ByteCodeInfo getClassByteCodeInfo(Instrumentation instrumentation, String className) {
+    public synchronized static ByteCodeInfo getClassByteCodeInfo(Instrumentation instrumentation, String className) {
         ByteCodeInfo byteCodeInfo = realByteCodeMap.get(className);
         if (byteCodeInfo == null) {
             byteCodeInfo = new ByteCodeInfo();
@@ -150,6 +168,76 @@ public class Debug4jAttachOperator {
     }
 
     /**
+     * 加载原始类文件
+     *
+     * @param className
+     * @return
+     */
+    private synchronized static Map<String, URL> loadOriginalClass(String className) {
+        String mainClassName = className.contains("$") ? className.substring(0, className.indexOf("$")) : className;
+        if (classURLMap.get(mainClassName) != null) {
+            return classURLMap.get(mainClassName);
+        } else {
+            Map<String, URL> classMap = new HashMap<>();
+            try {
+                Class<?> clazz = Class.forName(mainClassName);
+                ClassLoader loader = clazz.getClassLoader();
+                String path = clazz.getName().replace('.', '/') + ".class";
+                classMap.put(mainClassName, loader.getResource(path));
+                String basePath = path.substring(0, path.lastIndexOf('/') + 1);
+                String simpleName = clazz.getSimpleName();
+                URL dirURL = loader.getResource(basePath);
+                if (dirURL != null && "file".equals(dirURL.getProtocol())) {
+                    String namePrefix = mainClassName.substring(0, mainClassName.length() - simpleName.length());
+                    File dir = new File(dirURL.toURI());
+                    for (File file : Objects.requireNonNull(dir.listFiles())) {
+                        String name = file.getName();
+                        if (name.startsWith(simpleName + "$") && name.endsWith(".class")) {
+                            classMap.put(namePrefix + name.replace(".class", ""), file.toURI().toURL());
+                        }
+                    }
+                } else if (dirURL != null && "jar".equals(dirURL.getProtocol())) {
+                    String jarPath = dirURL.getPath().replace("file:", "").replace("nested:", "");
+                    jarPath = jarPath.substring(0, jarPath.indexOf("!"));
+                    JarFile jar = new JarFile(URLDecoder.decode(jarPath, StandardCharsets.UTF_8));
+                    Enumeration<JarEntry> entries = jar.entries();
+                    while (entries.hasMoreElements()) {
+                        JarEntry entry = entries.nextElement();
+                        String name = entry.getName();
+                        String innerClassNamePrefix = basePath + simpleName + "$";
+                        if (name.contains(innerClassNamePrefix) && name.endsWith(".class")) {
+                            String[] innerSplit = name.split(Pattern.quote(innerClassNamePrefix));
+                            String innerClassName = innerClassNamePrefix + innerSplit[1];
+                            classMap.put(innerClassName.replace("/", ".").replace(".class", ""), loader.getResource(name));
+                        }
+                    }
+                    jar.close();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            classMap.keySet().forEach(cls -> {
+                try {
+                    Class.forName(cls);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+            LinkedHashMap<String, URL> linkedHashMap = classMap.entrySet()
+                    .stream()
+                    .sorted(Map.Entry.comparingByKey())
+                    .collect(Collectors.toMap(
+                            Map.Entry::getKey,
+                            Map.Entry::getValue,
+                            (o1, o2) -> o1,
+                            LinkedHashMap::new
+                    ));
+            classURLMap.put(mainClassName, linkedHashMap);
+            return linkedHashMap;
+        }
+    }
+
+    /**
      * jadx字节码转源码
      *
      * @param className
@@ -165,23 +253,83 @@ public class Debug4jAttachOperator {
                 e.printStackTrace();
                 return null;
             }
-            JadxArgs jadxArgs = new JadxArgs();
-            jadxArgs.setInputFile(file);
-            jadxArgs.setDebugInfo(false);
-            jadxArgs.setCodeNewLineStr("\n");
-            JadxDecompiler jadx = new JadxDecompiler(jadxArgs);
-            jadx.load();
-            String sourceCode = null;
-            for (JavaClass cls : jadx.getClasses()) {
-                sourceCode = cls.getCode();
-            }
-            jadx.close();
             file.deleteOnExit();
-            return sourceCode;
+            return jadxDecompile(List.of(file));
         } catch (Exception e) {
             e.printStackTrace();
         }
         return null;
+    }
+
+    /**
+     * jadx字节码转源码（支持内部类）
+     *
+     * @param instrumentation
+     * @param className
+     * @param sourceCodeType
+     * @return
+     */
+    public static String jadxByteCodeToSourceWithInner(Instrumentation instrumentation, String className, SourceCodeTypeEnum sourceCodeType) {
+        return jadxByteCodeToSourceWithInner(instrumentation, className, sourceCodeType, null, null);
+    }
+
+    /**
+     * jadx字节码转源码（支持内部类）
+     *
+     * @param instrumentation
+     * @param className
+     * @param sourceCodeType
+     * @param lineClassName
+     * @param lineClassByteCodeByCache
+     * @return
+     */
+    public static String jadxByteCodeToSourceWithInner(Instrumentation instrumentation, String className,
+                                                       SourceCodeTypeEnum sourceCodeType, String lineClassName, byte[] lineClassByteCodeByCache) {
+        try {
+            List<File> fileList = new ArrayList<>();
+            Map<String, URL> originalClass = loadOriginalClass(className);
+            for (Map.Entry<String, URL> entry : originalClass.entrySet()) {
+                ByteCodeInfo byteCodeInfo = getClassByteCodeInfo(instrumentation, entry.getKey());
+                byte[] classByteCodeByCache = getClassByteCodeByCache(sourceCodeType, byteCodeInfo);
+                if (StrUtil.isNotBlank(lineClassName) && entry.getKey().endsWith(lineClassName)) {
+                    classByteCodeByCache = lineClassByteCodeByCache;
+                }
+                File file = new File(FileUtils.createTempDir(), className + ".class");
+                try (FileOutputStream fos = new FileOutputStream(file)) {
+                    fos.write(classByteCodeByCache);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    continue;
+                }
+                fileList.add(file);
+            }
+            fileList.forEach(File::deleteOnExit);
+            return jadxDecompile(fileList);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    /**
+     * jadx反编译
+     *
+     * @param inputFiles
+     * @return
+     */
+    private synchronized static String jadxDecompile(List<File> inputFiles) {
+        JadxArgs jadxArgs = new JadxArgs();
+        jadxArgs.setInputFiles(inputFiles);
+        jadxArgs.setDebugInfo(false);
+        jadxArgs.setCodeNewLineStr("\n");
+        JadxDecompiler jadx = new JadxDecompiler(jadxArgs);
+        jadx.load();
+        String sourceCode = null;
+        for (JavaClass cls : jadx.getClasses()) {
+            sourceCode = cls.getCode();
+        }
+        jadx.close();
+        return sourceCode;
     }
 
     /**
@@ -191,34 +339,43 @@ public class Debug4jAttachOperator {
      * @param className
      * @return
      */
-    public static List<String> classMethods(Instrumentation instrumentation, String className) {
-        List<String> classMethods = new ArrayList<>();
-        ByteCodeInfo byteCodeInfo = getClassByteCodeInfo(instrumentation, className);
-        byte[] classByteCodeByCache = getClassByteCodeByCache(SourceCodeTypeEnum.attachClassByteCode, byteCodeInfo);
-        if (classByteCodeByCache != null) {
-            try {
-                ClassPool pool = ClassPool.getDefault();
-                CtClass cc = pool.get(className);
-                if (cc.isFrozen()) {
-                    cc.defrost();
-                }
-                pool.makeClass(new ByteArrayInputStream(classByteCodeByCache));
-                cc = pool.get(className);
-                CtMethod[] declaredMethods = cc.getDeclaredMethods();
-                Map<String, Integer> counter = new HashMap<>();
-                for (CtMethod declaredMethod : declaredMethods) {
-                    int count = counter.merge(declaredMethod.getName(), 1, Integer::sum);
-                    if (count == 1) {
-                        classMethods.add(declaredMethod.getName());
-                    } else {
-                        classMethods.add(declaredMethod.getName() + "#" + count);
+    public synchronized static List<String> classMethods(Instrumentation instrumentation, String className) {
+        if (classMethodMap.get(className) != null) {
+            return classMethodMap.get(className);
+        } else {
+            List<String> classMethods = new ArrayList<>();
+            Map<String, URL> originalClass = loadOriginalClass(className);
+            for (Map.Entry<String, URL> entry : originalClass.entrySet()) {
+                ByteCodeInfo byteCodeInfo = getClassByteCodeInfo(instrumentation, entry.getKey());
+                byte[] classByteCodeByCache = getClassByteCodeByCache(SourceCodeTypeEnum.attachClassByteCode, byteCodeInfo);
+                if (classByteCodeByCache != null) {
+                    String simpleName = entry.getKey().substring(entry.getKey().lastIndexOf(".") + 1);
+                    try {
+                        ClassPool pool = ClassPool.getDefault();
+                        CtClass cc = pool.get(entry.getKey());
+                        if (cc.isFrozen()) {
+                            cc.defrost();
+                        }
+                        pool.makeClass(new ByteArrayInputStream(classByteCodeByCache));
+                        cc = pool.get(entry.getKey());
+                        CtMethod[] declaredMethods = cc.getDeclaredMethods();
+                        Map<String, Integer> counter = new HashMap<>();
+                        for (CtMethod declaredMethod : declaredMethods) {
+                            int count = counter.merge(declaredMethod.getName(), 1, Integer::sum);
+                            if (count == 1) {
+                                classMethods.add(simpleName + "@" + declaredMethod.getName());
+                            } else {
+                                classMethods.add(simpleName + "@" + declaredMethod.getName() + "#" + count);
+                            }
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
                     }
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
             }
+            classMethodMap.put(className, classMethods);
+            return classMethods;
         }
-        return classMethods;
     }
 
     /**
@@ -229,7 +386,7 @@ public class Debug4jAttachOperator {
      * @param sourceCode
      * @return
      */
-    public static boolean sourceReload(Instrumentation instrumentation, String className, String sourceCode) {
+    public synchronized static boolean sourceReload(Instrumentation instrumentation, String className, String sourceCode) {
         ByteCodeInfo byteCodeInfo = getClassByteCodeInfo(instrumentation, className);
         ByteCodeInfo orginalByteCodeInfo = BeanUtil.copyProperties(byteCodeInfo, ByteCodeInfo.class);
         try {
@@ -249,6 +406,46 @@ public class Debug4jAttachOperator {
     }
 
     /**
+     * 源码热更新（支持内部类）
+     *
+     * @param instrumentation
+     * @param className
+     * @param sourceCode
+     * @return
+     */
+    public synchronized static boolean sourceReloadWithInner(Instrumentation instrumentation, String className, String sourceCode) {
+        ByteCodeInfo byteCodeInfo = getClassByteCodeInfo(instrumentation, className);
+        ByteCodeInfo orginalByteCodeInfo = BeanUtil.copyProperties(byteCodeInfo, ByteCodeInfo.class);
+        try {
+            if (byteCodeInfo != null && !byteCodeInfo.getAttachClassByteCodeType().equals(ByteCodeTypeEnum.agentWithByteBuddy)) {
+                CompletableFuture<ByteCodeInfo> future = new CompletableFuture<>();
+                Debug4jClassFileTransformer debug4jClassFileTransformer = new Debug4jClassFileTransformer(className,
+                        CommandTypeEnum.ATTACH_REQ_CLASS_RELOAD_JAVA, sourceCode, null, future, byteCodeInfo);
+                reTransformer(instrumentation, className, debug4jClassFileTransformer);
+                Map<String, URL> originalClass = loadOriginalClass(className);
+                originalClass.keySet().forEach(innerClassName -> {
+                    if (!innerClassName.equals(className)) {
+                        try {
+                            ByteCodeInfo innerByteCodeInfo = getClassByteCodeInfo(instrumentation, innerClassName);
+                            Debug4jClassFileTransformer debug4jClassFileTransformerInner = new Debug4jClassFileTransformer(innerClassName,
+                                    CommandTypeEnum.ATTACH_REQ_CLASS_RELOAD_JAVA, sourceCode, null, null, innerByteCodeInfo);
+                            reTransformer(instrumentation, innerClassName, debug4jClassFileTransformerInner);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+                });
+                realByteCodeMap.put(className, future.get(30, TimeUnit.SECONDS));
+                return true;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            realByteCodeMap.put(className, orginalByteCodeInfo);
+        }
+        return false;
+    }
+
+    /**
      * 字节码热更新
      *
      * @param instrumentation
@@ -256,7 +453,7 @@ public class Debug4jAttachOperator {
      * @param byteCode
      * @return
      */
-    public static boolean classReload(Instrumentation instrumentation, String className, String byteCode) {
+    public synchronized static boolean classReload(Instrumentation instrumentation, String className, String byteCode) {
         ByteCodeInfo byteCodeInfo = getClassByteCodeInfo(instrumentation, className);
         ByteCodeInfo orginalByteCodeInfo = BeanUtil.copyProperties(byteCodeInfo, ByteCodeInfo.class);
         try {
@@ -281,7 +478,7 @@ public class Debug4jAttachOperator {
      * @param instrumentation
      * @param className
      */
-    public static void classRestore(Instrumentation instrumentation, String className) {
+    public synchronized static void classRestore(Instrumentation instrumentation, String className) {
         try {
             ByteCodeInfo byteCodeInfo = getClassByteCodeInfo(instrumentation, className);
             if (byteCodeInfo != null) {
@@ -289,6 +486,19 @@ public class Debug4jAttachOperator {
                 Debug4jClassFileTransformer debug4jClassFileTransformer = new Debug4jClassFileTransformer(className,
                         CommandTypeEnum.ATTACH_REQ_CLASS_RESTORE, null, null, future, byteCodeInfo);
                 reTransformer(instrumentation, className, debug4jClassFileTransformer);
+                Map<String, URL> originalClass = loadOriginalClass(className);
+                originalClass.keySet().forEach(innerClassName -> {
+                    if (!innerClassName.equals(className)) {
+                        try {
+                            ByteCodeInfo innerByteCodeInfo = getClassByteCodeInfo(instrumentation, innerClassName);
+                            Debug4jClassFileTransformer debug4jClassFileTransformerInner = new Debug4jClassFileTransformer(innerClassName,
+                                    CommandTypeEnum.ATTACH_REQ_CLASS_RESTORE, null, null, null, innerByteCodeInfo);
+                            reTransformer(instrumentation, innerClassName, debug4jClassFileTransformerInner);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+                });
                 realByteCodeMap.put(className, future.get(30, TimeUnit.SECONDS));
             }
         } catch (Exception e) {
@@ -303,7 +513,8 @@ public class Debug4jAttachOperator {
      * @param className
      * @param debug4jClassFileTransformer
      */
-    private static void reTransformer(Instrumentation instrumentation, String className, Debug4jClassFileTransformer debug4jClassFileTransformer) throws UnmodifiableClassException {
+    private synchronized static void reTransformer(Instrumentation instrumentation, String className,
+                                                   Debug4jClassFileTransformer debug4jClassFileTransformer) throws UnmodifiableClassException {
         instrumentation.addTransformer(debug4jClassFileTransformer, true);
         for (Class allLoadedClass : instrumentation.getAllLoadedClasses()) {
             if (allLoadedClass.getName().equals(className)) {
@@ -327,44 +538,49 @@ public class Debug4jAttachOperator {
      * @param className
      * @param lineMethodName
      */
-    public static MethodLineInfo methodLine(Instrumentation instrumentation, String className, String lineMethodName) {
+    public synchronized static MethodLineInfo methodLine(Instrumentation instrumentation, String className, String lineMethodName) {
+        String[] lineMethodNameSplit = lineMethodName.split("@");
+        String lineClassName = lineMethodNameSplit[0];
+        lineMethodName = lineMethodNameSplit[1];
+        className = className.substring(0, className.lastIndexOf(".")) + "." + lineClassName;
         ByteCodeInfo byteCodeInfo = getClassByteCodeInfo(instrumentation, className);
         byte[] classByteCodeByCache = getClassByteCodeByCache(SourceCodeTypeEnum.attachClassByteCode, byteCodeInfo);
         if (classByteCodeByCache != null) {
-            if (StrUtil.isNotBlank(lineMethodName)) {
-                try {
-                    ClassPool pool = ClassPool.getDefault();
-                    CtClass cc = pool.get(className);
-                    if (cc.isFrozen()) {
-                        cc.defrost();
-                    }
-                    pool.makeClass(new ByteArrayInputStream(classByteCodeByCache));
-                    cc = pool.get(className);
-                    int methodIndex = 0;
-                    String realMethodName = lineMethodName;
-                    if (lineMethodName.contains("#")) {
-                        methodIndex = Integer.parseInt(lineMethodName.split("#")[1]) - 1;
-                        realMethodName = lineMethodName.split("#")[0];
-                    }
-                    CtMethod[] declaredMethods = cc.getDeclaredMethods(realMethodName);
-                    SortedSet<Integer> set = new TreeSet<>();
-                    CtMethod declaredMethod = declaredMethods[methodIndex];
-                    CodeIterator iterator = declaredMethod.getMethodInfo().getCodeAttribute().iterator();
-                    while (iterator.hasNext()) {
-                        set.add(declaredMethod.getMethodInfo().getLineNumber(iterator.next()));
-                    }
-                    Integer first = set.first();
-                    declaredMethod.insertAt(first, "{com.k4ln.debug4j.common.daemon.Debug4jLine.tag(" + first + ");}");
-                    byte[] bytecode = cc.toBytecode();
-                    String sourceCode = jadxByteCodeToSource(className, bytecode);
-                    String flagSourceCode = sourceLineFlag(sourceCode);
-                    return MethodLineInfo.builder().sourceCode(flagSourceCode).classMethods(classMethods(instrumentation, className)).lineNumbers(set.stream().toList()).build();
-                } catch (Exception e) {
-                    e.printStackTrace();
+            try {
+                ClassPool pool = ClassPool.getDefault();
+                CtClass cc = pool.get(className);
+                if (cc.isFrozen()) {
+                    cc.defrost();
                 }
-            } else {
-                String sourceCode = jadxByteCodeToSource(className, classByteCodeByCache);
-                return MethodLineInfo.builder().sourceCode(sourceCode).classMethods(classMethods(instrumentation, className)).lineNumbers(new ArrayList<>()).build();
+                pool.makeClass(new ByteArrayInputStream(classByteCodeByCache));
+                cc = pool.get(className);
+                int methodIndex = 0;
+                String realMethodName = lineMethodName;
+                if (lineMethodName.contains("#")) {
+                    methodIndex = Integer.parseInt(lineMethodName.split("#")[1]) - 1;
+                    realMethodName = lineMethodName.split("#")[0];
+                }
+                CtMethod[] declaredMethods = cc.getDeclaredMethods(realMethodName);
+                SortedSet<Integer> set = new TreeSet<>();
+                CtMethod declaredMethod = declaredMethods[methodIndex];
+                CodeIterator iterator = declaredMethod.getMethodInfo().getCodeAttribute().iterator();
+                while (iterator.hasNext()) {
+                    set.add(declaredMethod.getMethodInfo().getLineNumber(iterator.next()));
+                }
+                set.forEach(lineNumber -> {
+                    try {
+                        declaredMethod.insertAt(lineNumber, "{com.k4ln.debug4j.common.daemon.Debug4jLine.tag(" + lineNumber + ");}");
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                });
+                byte[] bytecode = cc.toBytecode();
+//                    String sourceCode = jadxByteCodeToSource(className, bytecode);
+                String sourceCode = jadxByteCodeToSourceWithInner(instrumentation, className, SourceCodeTypeEnum.attachClassByteCode, lineClassName, bytecode);
+                String flagSourceCode = sourceLineFlag(sourceCode);
+                return MethodLineInfo.builder().sourceCode(flagSourceCode).classMethods(classMethods(instrumentation, className)).lineNumbers(set.stream().toList()).build();
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }
         return MethodLineInfo.builder().build();
@@ -412,8 +628,13 @@ public class Debug4jAttachOperator {
      * @param sourceCode
      * @param lineNumber
      */
-    public static void patchLine(Instrumentation instrumentation, String className, String lineMethodName, String sourceCode, Integer lineNumber) {
+    public synchronized static void patchLine(Instrumentation instrumentation, String className, String lineMethodName,
+                                              String sourceCode, Integer lineNumber) {
         try {
+            String[] lineMethodNameSplit = lineMethodName.split("@");
+            String lineClassName = lineMethodNameSplit[0];
+            lineMethodName = lineMethodNameSplit[1];
+            className = className.substring(0, className.lastIndexOf(".")) + "." + lineClassName;
             ByteCodeInfo byteCodeInfo = getClassByteCodeInfo(instrumentation, className);
             if (byteCodeInfo != null) {
                 CompletableFuture<ByteCodeInfo> future = new CompletableFuture<>();

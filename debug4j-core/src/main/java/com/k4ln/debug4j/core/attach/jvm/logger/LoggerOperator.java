@@ -12,7 +12,7 @@ public class LoggerOperator {
      * @param logger
      * @param level
      */
-    public static void setLevel(String logger, Level level) {
+    public synchronized static void setLevel(String logger, Level level) {
         String impl = detectLoggerImpl();
         switch (impl) {
             case "LOGBACK" -> LogbackAdapter.set(logger, level);
