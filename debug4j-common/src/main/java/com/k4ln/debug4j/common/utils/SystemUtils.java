@@ -33,4 +33,58 @@ public class SystemUtils {
         }
         return -1;
     }
+
+    /**
+     * 获取类名
+     *
+     * @param obj
+     * @return
+     */
+    public static String getClassName(Object obj) {
+        return getClass(obj).getName();
+    }
+
+    /**
+     * 获取类名
+     *
+     * @param cls
+     * @return
+     */
+    public static String getClassName(Class cls) {
+        return cls.getName();
+    }
+
+    /**
+     * 获取类Class
+     *
+     * @param obj
+     * @return
+     */
+    public static Class<?> getClass(Object obj) {
+        if (obj == null) return null;
+        Class<?> clazz = obj.getClass();
+        if (java.lang.reflect.Proxy.isProxyClass(clazz)) {
+            Class<?>[] interfaces = clazz.getInterfaces();
+            if (interfaces.length > 0) {
+                return interfaces[0];
+            }
+            return clazz;
+        }
+        while (clazz != null) {
+            String name = clazz.getName();
+            if (isProxyName(name)) {
+                clazz = clazz.getSuperclass();
+            } else {
+                break;
+            }
+        }
+        return clazz;
+    }
+
+    private static boolean isProxyName(String name) {
+        return name.contains("$$")
+                || name.contains("$ByteBuddy$")
+                || name.contains("_$$_jvst")
+                || name.contains("CGLIB");
+    }
 }

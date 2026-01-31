@@ -6,16 +6,21 @@ import com.k4ln.debug4j.common.protocol.command.CommandTypeEnum;
 import com.k4ln.debug4j.common.protocol.command.message.enums.ByteCodeTypeEnum;
 import com.k4ln.debug4j.common.protocol.command.message.enums.SourceCodeTypeEnum;
 import com.k4ln.debug4j.common.utils.FileUtils;
+import com.k4ln.debug4j.core.Debugger;
 import com.k4ln.debug4j.core.attach.dto.ByteCodeInfo;
 import com.k4ln.debug4j.core.attach.dto.MethodLineInfo;
+import com.k4ln.debug4j.core.attach.dto.ObjMethodInfo;
 import com.k4ln.debug4j.core.attach.dto.SourceCodeInfo;
 import jadx.api.JadxArgs;
 import jadx.api.JadxDecompiler;
 import jadx.api.JavaClass;
+import jadx.api.JavaMethod;
+import jadx.core.dex.instructions.args.ArgType;
 import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.CtMethod;
 import javassist.bytecode.CodeIterator;
+import javassist.bytecode.SignatureAttribute;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -25,6 +30,7 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.lang.instrument.Instrumentation;
 import java.lang.instrument.UnmodifiableClassException;
+import java.lang.reflect.Modifier;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -60,6 +66,12 @@ public class Debug4jAttachOperator {
     private static final Map<String, List<String>> classMethodMap = new ConcurrentHashMap<>();
 
     /**
+     * className -> methodInfo
+     */
+    @Getter
+    private static final Map<String, List<ObjMethodInfo>> classMethodInfoMap = new ConcurrentHashMap<>();
+
+    /**
      * 获取所有class名称
      *
      * @param instrumentation
@@ -87,7 +99,6 @@ public class Debug4jAttachOperator {
      */
     public static SourceCodeInfo getClassSource(Instrumentation instrumentation, String className, SourceCodeTypeEnum sourceCodeType) {
         ByteCodeInfo byteCodeInfo = getClassByteCodeInfo(instrumentation, className);
-//        String classSource = jadxByteCodeToSource(className, getClassByteCodeByCache(sourceCodeType, byteCodeInfo));
         String classSource = jadxByteCodeToSourceWithInner(instrumentation, className, sourceCodeType);
         return SourceCodeInfo.builder()
                 .byteCodeType(byteCodeInfo != null ? byteCodeInfo.getAttachClassByteCodeType() : null)
@@ -379,6 +390,125 @@ public class Debug4jAttachOperator {
     }
 
     /**
+     * 获取类方法签名
+     *
+     * @param className
+     * @return
+     */
+    public static List<ObjMethodInfo> methodSignatureInfo(String className) {
+        if (classMethodInfoMap.containsKey(className)) {
+            return classMethodInfoMap.get(className);
+        }
+        List<ObjMethodInfo> signatureInfos = new ArrayList<>();
+        try {
+            ClassPool pool = ClassPool.getDefault();
+            CtClass cc = pool.get(className);
+            CtMethod[] declaredMethods = cc.getDeclaredMethods();
+            for (CtMethod declaredMethod : declaredMethods) {
+                ObjMethodInfo signatureInfo = ObjMethodInfo.builder()
+                        .methodName(declaredMethod.getName())
+                        .isStatic(Modifier.isStatic(declaredMethod.getModifiers()))
+                        .build();
+                SignatureAttribute sa = (SignatureAttribute) declaredMethod.getMethodInfo().getAttribute(SignatureAttribute.tag);
+                if (sa == null) {
+                    signatureInfo.setReturnType(declaredMethod.getReturnType().getName());
+                    signatureInfo.setArgTypeList(Arrays.stream(declaredMethod.getParameterTypes()).map(CtClass::getName).toList());
+                } else {
+                    SignatureAttribute.MethodSignature ms = SignatureAttribute.toMethodSignature(sa.getSignature());
+                    signatureInfo.setReturnType(parseType(ms.getReturnType()));
+                    List<String> argList = new ArrayList<>();
+                    for (SignatureAttribute.Type t : ms.getParameterTypes()) {
+                        argList.add(parseType(t));
+                    }
+                    signatureInfo.setArgTypeList(argList);
+                }
+                signatureInfo.setSignature(signatureInfo.toString());
+                signatureInfos.add(signatureInfo);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        classMethodInfoMap.put(className, signatureInfos);
+        return signatureInfos;
+    }
+
+    private static String parseType(SignatureAttribute.Type type) {
+        if (type instanceof SignatureAttribute.ClassType ct) {
+            StringBuilder sb = new StringBuilder();
+            sb.append(ct.getName());
+            if (ct.getTypeArguments() != null && ct.getTypeArguments().length > 0) {
+                sb.append("<");
+                for (int i = 0; i < ct.getTypeArguments().length; i++) {
+                    if (i > 0) sb.append(", ");
+                    SignatureAttribute.TypeArgument arg = ct.getTypeArguments()[i];
+                    if (arg.getType() != null) {
+                        sb.append(parseType(arg.getType()));
+                    } else {
+                        sb.append("?");
+                    }
+                }
+                sb.append(">");
+            }
+            return sb.toString();
+        }
+        if (type instanceof SignatureAttribute.ArrayType at) {
+            return parseType(at.getComponentType()) + "[]";
+        }
+        if (type instanceof SignatureAttribute.TypeVariable tv) {
+            return tv.getName();
+        }
+        return type.toString();
+    }
+
+    /**
+     * 获取类方法签名
+     *
+     * @param className
+     * @return
+     */
+    public static List<ObjMethodInfo> jadxMethodSignature(String className) {
+        if (classMethodInfoMap.containsKey(className)) {
+            return classMethodInfoMap.get(className);
+        }
+        List<ObjMethodInfo> signatureInfos = new ArrayList<>();
+        try {
+            ByteCodeInfo byteCodeInfo = getClassByteCodeInfo(Debugger.getInstrumentation(), className);
+            File file = new File(FileUtils.createTempDir(), className + ".class");
+            try (FileOutputStream fos = new FileOutputStream(file)) {
+                fos.write(getClassByteCodeByCache(SourceCodeTypeEnum.originalClassFile, byteCodeInfo));
+            } catch (Exception e) {
+                e.printStackTrace();
+                return signatureInfos;
+            } finally {
+                file.deleteOnExit();
+            }
+            JadxArgs jadxArgs = new JadxArgs();
+            jadxArgs.setInputFile(file);
+            jadxArgs.setDebugInfo(false);
+            jadxArgs.setCodeNewLineStr("\n");
+            JadxDecompiler jadx = new JadxDecompiler(jadxArgs);
+            jadx.load();
+            for (JavaClass cls : jadx.getClasses()) {
+                List<JavaMethod> methods = cls.getMethods();
+                for (JavaMethod declaredMethod : methods) {
+                    ObjMethodInfo signatureInfo = ObjMethodInfo.builder()
+                            .methodName(declaredMethod.getName())
+                            .returnType(declaredMethod.getReturnType().toString())
+                            .argTypeList(declaredMethod.getArguments().stream().map(ArgType::toString).toList())
+                            .build();
+                    signatureInfo.setSignature(signatureInfo.toString());
+                    signatureInfos.add(signatureInfo);
+                }
+            }
+            jadx.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        classMethodInfoMap.put(className, signatureInfos);
+        return signatureInfos;
+    }
+
+    /**
      * 源码热更新
      *
      * @param instrumentation
@@ -575,7 +705,6 @@ public class Debug4jAttachOperator {
                     }
                 });
                 byte[] bytecode = cc.toBytecode();
-//                    String sourceCode = jadxByteCodeToSource(className, bytecode);
                 String sourceCode = jadxByteCodeToSourceWithInner(instrumentation, className, SourceCodeTypeEnum.attachClassByteCode, lineClassName, bytecode);
                 String flagSourceCode = sourceLineFlag(sourceCode);
                 return MethodLineInfo.builder().sourceCode(flagSourceCode).classMethods(classMethods(instrumentation, className)).lineNumbers(set.stream().toList()).build();

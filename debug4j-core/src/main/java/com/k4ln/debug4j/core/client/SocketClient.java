@@ -265,7 +265,7 @@ public class SocketClient {
                     } else if (command.getCommand().equals(CommandTypeEnum.ATTACH_REQ_PROCESS_ADJUSTMENT)) {
                         CommandProcessAdjustmentReqMessage adjustmentReqMessage = JSON.parseObject(JSON.toJSONString(command.getData()), CommandProcessAdjustmentReqMessage.class);
                         ProcessAdjustmentInfo processAdjustmentInfo = Debug4jProcessOperator.adjustment(adjustmentReqMessage);
-                        SocketProtocolUtil.sendMessage(session, HashUtil.fnvHash(adjustmentReqMessage.getReqId()), ProtocolTypeEnum.COMMAND, CommandProcessAdjustmentRespMessage.buildCommandProcessAdjustmentRespMessage(adjustmentReqMessage.getReqId(), processAdjustmentInfo.getAdjustmentResult()));
+                        SocketProtocolUtil.sendMessage(session, HashUtil.fnvHash(adjustmentReqMessage.getReqId()), ProtocolTypeEnum.COMMAND, CommandProcessAdjustmentRespMessage.buildCommandProcessAdjustmentRespMessage(adjustmentReqMessage.getReqId(), processAdjustmentInfo.getAdjustmentResult(), processAdjustmentInfo.getAdjustmentExtendResult()));
                     }
                 }
             }

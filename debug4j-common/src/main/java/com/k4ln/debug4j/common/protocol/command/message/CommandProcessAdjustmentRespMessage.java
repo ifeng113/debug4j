@@ -1,6 +1,7 @@
 package com.k4ln.debug4j.common.protocol.command.message;
 
 import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONObject;
 import com.alibaba.fastjson2.annotation.JSONField;
 import com.k4ln.debug4j.common.protocol.command.Command;
 import com.k4ln.debug4j.common.protocol.command.CommandTypeEnum;
@@ -29,12 +30,18 @@ public class CommandProcessAdjustmentRespMessage {
     @JSONField(deserializeUsing = SequentialMapDeserializer.class)
     private Map<String, String> adjustmentResult;
 
-    public static byte[] buildCommandProcessAdjustmentRespMessage(String reqId, Map<String, String> adjustmentResult) {
+    /**
+     * 调整扩展结果
+     */
+    private JSONObject adjustmentExtendResult;
+
+    public static byte[] buildCommandProcessAdjustmentRespMessage(String reqId, Map<String, String> adjustmentResult, JSONObject adjustmentExtendResult) {
         return (JSON.toJSONString(Command.builder()
                 .command(CommandTypeEnum.ATTACH_RESP_PROCESS_ARG_DETAILS)
                 .data(CommandProcessAdjustmentRespMessage.builder()
                         .reqId(reqId)
                         .adjustmentResult(adjustmentResult)
+                        .adjustmentExtendResult(adjustmentExtendResult)
                         .build())
                 .build())
         ).getBytes();

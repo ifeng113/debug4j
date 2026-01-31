@@ -7,18 +7,18 @@ import cn.hutool.core.util.ReflectUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.core.util.ZipUtil;
 import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONArray;
+import com.alibaba.fastjson2.JSONObject;
 import com.k4ln.debug4j.common.daemon.Debug4jCommand;
 import com.k4ln.debug4j.common.daemon.enums.ExtendedHookType;
 import com.k4ln.debug4j.common.daemon.enums.ReloadMode;
 import com.k4ln.debug4j.common.protocol.command.message.CommandProcessAdjustmentReqMessage;
 import com.k4ln.debug4j.common.protocol.command.message.CommandProcessReqMessage;
-import com.k4ln.debug4j.common.utils.SocketProtocolUtil;
 import com.k4ln.debug4j.common.utils.StringUtils;
+import com.k4ln.debug4j.common.utils.SystemUtils;
 import com.k4ln.debug4j.core.Debugger;
-import com.k4ln.debug4j.core.attach.dto.FileInfo;
-import com.k4ln.debug4j.core.attach.dto.ProcessAdjustmentInfo;
-import com.k4ln.debug4j.core.attach.dto.ProcessArgsInfo;
-import com.k4ln.debug4j.core.attach.dto.TaskInfo;
+import com.k4ln.debug4j.core.attach.Debug4jAttachOperator;
+import com.k4ln.debug4j.core.attach.dto.*;
 import com.k4ln.debug4j.core.attach.jvm.logger.LoggerInfo;
 import com.k4ln.debug4j.core.attach.jvm.logger.LoggerOperator;
 import com.sun.management.HotSpotDiagnosticMXBean;
@@ -34,6 +34,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.lang.management.ManagementFactory;
+import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -50,6 +51,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.k4ln.debug4j.common.utils.SocketProtocolUtil.*;
+import static com.k4ln.debug4j.common.utils.SystemUtils.getClassName;
 import static com.k4ln.debug4j.core.client.SocketClient.callbackFileMessage;
 
 @Slf4j
@@ -396,15 +398,11 @@ public class Debug4jProcessOperator {
                                 .adjustmentResult(Map.of("//absolutePath", path.toAbsolutePath().toString()))
                                 .build();
                     } else {
-                        return ProcessAdjustmentInfo.builder()
-                                .adjustmentResult(Map.of("//errMsg", "fileAbsolutePath is not exist"))
-                                .build();
+                        return adjustmentError("fileAbsolutePath is not exist");
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
-                    return ProcessAdjustmentInfo.builder()
-                            .adjustmentResult(Map.of("//errMsg", e.getClass().getName() + ": " + e.getMessage()))
-                            .build();
+                    return adjustmentError(e);
                 }
             }
             case file_download -> {
@@ -441,92 +439,239 @@ public class Debug4jProcessOperator {
                         }
                         randomAccessFile.close();
                     } else {
-                        return ProcessAdjustmentInfo.builder()
-                                .adjustmentResult(Map.of("//errMsg", "fileAbsolutePath is not exist"))
-                                .build();
+                        return adjustmentError("fileAbsolutePath is not exist");
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
-                    return ProcessAdjustmentInfo.builder()
-                            .adjustmentResult(Map.of("//errMsg", e.getClass().getName() + ": " + e.getMessage()))
-                            .build();
+                    return adjustmentError(e);
                 }
             }
-            case obj_test -> {
-                printStaticMembers(SocketProtocolUtil.class);
+            case obj_info -> {
+                return getObjInfo(adjustmentReqMessage);
+            }
+            case obj_field -> {
+                // 根据objType获取对象：hook模式下直接操作对象，可修改非static final的属性；非hook模式只能修改static属性
+                Map<String, String> adjustmentContent = adjustmentReqMessage.getAdjustmentContent();
+                String objName = adjustmentContent.get("objName");
+                String objType = adjustmentContent.get("objType");
+                String objTypeParam = adjustmentContent.get("objTypeParam");
+                String fieldInfoString = adjustmentContent.get("fieldInfo");
+                ObjFieldInfo fieldInfo = JSON.parseObject(fieldInfoString, ObjFieldInfo.class);
+                Object obj = null;
+                if ("hook".equals(objType)) {
+                    if (fieldInfo.getIsFinal() && fieldInfo.getIsStatic()) {
+                        return adjustmentError("The static final field cannot be modified");
+                    }
+                    Debug4jCommand debug4jCommand = Debugger.getDebug4jCommand();
+                    if (debug4jCommand.getExtendedHook() != null && debug4jCommand.getExtendedHook().get(ExtendedHookType.HOOK_OBJ) != null) {
+                        obj = debug4jCommand.getExtendedHook().get(ExtendedHookType.HOOK_OBJ).apply(Map.of("objName", objName, "objTypeParam", objTypeParam));
+                    }
+                } else {
+                    if (fieldInfo.getIsFinal() || !fieldInfo.getIsStatic()) {
+                        return adjustmentError("Only static field can be modified");
+                    }
+                    try {
+                        Class<?> aClass = Class.forName(objName);
+                        obj = aClass.getDeclaredConstructor().newInstance();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+                if (obj == null) {
+                    return adjustmentError("The object corresponding to objName could not be retrieved successfully");
+                }
+                try {
+                    ReflectUtil.setFieldValue(obj, fieldInfo.getFieldName(), fieldInfo.getFieldValue());
+                    adjustmentContent.put("fieldValues", fieldInfo.getFieldName());
+                    return getObjInfo(adjustmentReqMessage);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    return adjustmentError(e);
+                }
+            }
+            case obj_method -> {
+                // 根据objType获取对象：hook模式下直接操作对象，可执行所有方法；非hook模式判断方法是否为static，如果是直接执行，如果不是则创建对象执行
+                Map<String, String> adjustmentContent = adjustmentReqMessage.getAdjustmentContent();
+                String objName = adjustmentContent.get("objName");
+                String objType = adjustmentContent.get("objType");
+                String objTypeParam = adjustmentContent.get("objTypeParam");
+                String methodInfoString = adjustmentContent.get("methodInfo");
+                ObjMethodInfo methodInfo = JSON.parseObject(methodInfoString, ObjMethodInfo.class);
+                Object obj = null;
+                if ("hook".equals(objType)) {
+                    Debug4jCommand debug4jCommand = Debugger.getDebug4jCommand();
+                    if (debug4jCommand.getExtendedHook() != null && debug4jCommand.getExtendedHook().get(ExtendedHookType.HOOK_OBJ) != null) {
+                        obj = debug4jCommand.getExtendedHook().get(ExtendedHookType.HOOK_OBJ).apply(Map.of("objName", objName, "objTypeParam", objTypeParam));
+                    }
+                } else {
+                    try {
+                        Class<?> aClass = Class.forName(objName);
+                        obj = aClass.getDeclaredConstructor().newInstance();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+                if (obj == null) {
+                    return adjustmentError("The object corresponding to objName could not be retrieved successfully");
+                }
+                try {
+                    Class[] classes = new Class[methodInfo.getArgTypeList().size()];
+                    for (int i = 0; i < methodInfo.getArgTypeList().size(); i++) {
+                        classes[i] = loadParamClass(methodInfo.getArgTypeList().get(i));
+                    }
+                    Method method = ReflectUtil.getMethod(obj.getClass(), methodInfo.getMethodName(), classes);
+                    Object returnValue = ReflectUtil.invokeRaw(obj, method, methodInfo.getArgValues().toArray());
+                    return ProcessAdjustmentInfo.builder().adjustmentExtendResult(getReturnValue(returnValue)).build();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    return adjustmentError(e);
+                }
             }
         }
         return ProcessAdjustmentInfo.builder().build();
     }
 
     /**
-     * 禁止final变量修改
+     * 加载参数类
      *
-     * @param clazz
+     * @param typeName
+     * @return
      */
-    public static void printStaticMembers(Class<?> clazz) {
-        // --------------  变量  --------------
-        for (Field field : clazz.getDeclaredFields()) {
-            if (Modifier.isStatic(field.getModifiers())) {
-                field.setAccessible(true);
-                try {
-                    System.out.println("[FIELD] " + field.getType().getName() + " " + field.getName() + " = " + field.get(null));
-                } catch (Exception e) {
-                    e.printStackTrace();
+    private static Class<?> loadParamClass(String typeName) {
+        try {
+            boolean isArray = false;
+            if (typeName.endsWith("[]")) {
+                isArray = true;
+                typeName = typeName.substring(0, typeName.length() - 2);
+            }
+            if (typeName.contains("<")) {
+                typeName = typeName.substring(0, typeName.indexOf("<"));
+            }
+            Class<?> clazz = Class.forName(typeName);
+            if (isArray) {
+                return java.lang.reflect.Array.newInstance(clazz, 0).getClass();
+            }
+            return clazz;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    /**
+     * 获取返回数据
+     *
+     * @param returnValue
+     * @return
+     */
+    private static JSONObject getReturnValue(Object returnValue) {
+        String keyString = "returnValue";
+        JSONObject wrapper = new JSONObject();
+        if (returnValue == null) {
+            wrapper.put(keyString, null);
+            return wrapper;
+        }
+        if (returnValue instanceof JSONObject) {
+            wrapper.put(keyString, returnValue);
+            return wrapper;
+        }
+        if (returnValue instanceof JSONArray) {
+            wrapper.put(keyString, returnValue);
+            return wrapper;
+        }
+        if (returnValue instanceof CharSequence
+                || returnValue instanceof Number
+                || returnValue instanceof Boolean
+                || returnValue.getClass().isEnum()) {
+            wrapper.put(keyString, returnValue);
+            return wrapper;
+        }
+        Class<?> clazz = returnValue.getClass();
+        if (clazz.isArray()) {
+            int len = Array.getLength(returnValue);
+            JSONArray arr = new JSONArray();
+            for (int i = 0; i < len; i++) {
+                arr.add(Array.get(returnValue, i));
+            }
+            wrapper.put(keyString, arr);
+            return wrapper;
+        }
+        wrapper.put(keyString, JSON.toJSON(returnValue));
+        return wrapper;
+    }
+
+    /**
+     * 获取对象信息
+     *
+     * @param adjustmentReqMessage
+     * @return
+     */
+    private static ProcessAdjustmentInfo getObjInfo(CommandProcessAdjustmentReqMessage adjustmentReqMessage) {
+        JSONObject jsonObject = new JSONObject();
+        Map<String, String> adjustmentContent = adjustmentReqMessage.getAdjustmentContent();
+        String objName = adjustmentContent.get("objName");
+        String objType = adjustmentContent.get("objType");
+        String objTypeParam = adjustmentContent.get("objTypeParam");
+        String fieldValues = adjustmentContent.get("fieldValues");
+        Class<?> clazz;
+        Object obj;
+        if ("hook".equals(objType)) {
+            Debug4jCommand debug4jCommand = Debugger.getDebug4jCommand();
+            if (debug4jCommand.getExtendedHook() != null && debug4jCommand.getExtendedHook().get(ExtendedHookType.HOOK_OBJ) != null) {
+                obj = debug4jCommand.getExtendedHook().get(ExtendedHookType.HOOK_OBJ).apply(Map.of("objName", objName, "objTypeParam", objTypeParam));
+                if (obj != null) {
+                    clazz = SystemUtils.getClass(obj);
+                } else {
+                    return adjustmentError("hook not found");
                 }
+            } else {
+                return adjustmentError("hook not found");
             }
-        }
-
-        Object fieldValue = ReflectUtil.getFieldValue(SocketProtocolUtil.class, "READ_BUFFER_SIZE");
-
-        for (Method method : clazz.getDeclaredMethods()) {
-            if (Modifier.isStatic(method.getModifiers())) {
-                System.out.println("[METHOD] " + method.getName());
-            }
-        }
-
-        Debug4jCommand debug4jCommand = Debugger.getDebug4jCommand();
-        if (debug4jCommand.getExtendedHook() != null && debug4jCommand.getExtendedHook().get(ExtendedHookType.HOOK_REFLECT) != null) {
-            Object bean = debug4jCommand.getExtendedHook().get(ExtendedHookType.HOOK_REFLECT).apply("demo2Controller");
-            Object fieldValue2 = ReflectUtil.getFieldValue(bean, "key");
-            ReflectUtil.setFieldValue(bean, "key", "value");
-
-            // --------------  函数  --------------
+        } else {
             try {
-
-                Method demoMethod1 = bean.getClass().getMethod("demo2");
-                Method demoMethod2 = ReflectUtil.getMethod(bean.getClass(), "demo2");
-                Method demoMethod3 = ReflectUtil.getMethodByName(bean.getClass(), "demo2");
-                Object oo1 = ReflectUtil.invokeRaw(bean, demoMethod1);
-                Object oo2 = ReflectUtil.invokeRaw(bean, demoMethod2);
-                Object oo3 = ReflectUtil.invokeRaw(bean, demoMethod3);
-
-                Method staticMethod1 = ReflectUtil.getMethod(StringUtils.class, "extractPort"); // 获取为null
-                Method staticMethod2 = ReflectUtil.getMethod(StringUtils.class, "extractPort", String.class);
-                Method staticMethod3 = ReflectUtil.getMethodByName(StringUtils.class, "extractPort");
-                Method staticMethod4 = StringUtils.class.getMethod("extractPort", String.class);
-
-                Object ok2 = ReflectUtil.invokeRaw(null, staticMethod2, "address=127.0.0.1:5002");
-                Object ok3 = ReflectUtil.invokeRaw(null, staticMethod3, "address=127.0.0.1:5003");
-                Object ok4 = ReflectUtil.invokeRaw(null, staticMethod4, "address=127.0.0.1:5004");
-
-                // 非spring对象支持不传递参数类型
-                TaskInfo taskInfo = new TaskInfo();
-                taskInfo.setReqId("77777");
-                Method objMethod1 = taskInfo.getClass().getMethod("getReqId");
-                Method objMethod2 = ReflectUtil.getMethod(taskInfo.getClass(), "getReqId");
-                Method objMethod3 = ReflectUtil.getMethodByName(taskInfo.getClass(), "getReqId");
-
-                // TODO 同名方法，调用哪个？ -> 返回方法签名 通过（JADS）反编译获取 方法签名信息
-                // TODO 执行钩子函数前先获取所有函数（返回值、名称、参数），有返回值的返回执行结果
-                // TODO 验证参数使用json，调用目标方法
-                // TODO 执行代码块（bytebuddy支持类签名修改）【钩子增强】
-
-                log.info("sa");
+                clazz = Class.forName(objName);
+                obj = clazz.getDeclaredConstructor().newInstance(); // 默认构造方法
             } catch (Exception e) {
                 e.printStackTrace();
+                return adjustmentError(e);
             }
         }
+        List<ObjFieldInfo> objFieldInfos = new ArrayList<>();
+        try {
+            List<String> fieldValuesList = StrUtil.isBlank(fieldValues) ? new ArrayList<>() : Arrays.asList(fieldValues.split(","));
+            for (Field field : clazz.getDeclaredFields()) {
+                field.setAccessible(true);
+                Object fieldValue = null;
+                if (fieldValuesList.contains(field.getName())) {
+                    fieldValue = Modifier.isStatic(field.getModifiers()) ? field.get(null) : field.get(obj);
+                }
+                ObjFieldInfo fieldInfo = ObjFieldInfo.builder()
+                        .fieldName(field.getName())
+                        .fieldType(field.getGenericType().getTypeName())
+                        .fieldValue(fieldValue)
+                        .isFinal(Modifier.isFinal(field.getModifiers()))
+                        .isStatic(Modifier.isStatic(field.getModifiers()))
+                        .build();
+                fieldInfo.setSignature(field.toGenericString());
+//                fieldInfo.setSignature(fieldInfo.toString());
+                objFieldInfos.add(fieldInfo);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return adjustmentError(e);
+        }
+        try {
+            jsonObject.put("fieldInfo", objFieldInfos);
+            JSON.toJSONString(jsonObject);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return adjustmentError("The 'invokeValues' contains non-serializable values. Please remove them and try again");
+        }
+        List<ObjMethodInfo> objMethodInfos = Debug4jAttachOperator.methodSignatureInfo(getClassName(obj));
+        jsonObject.put("methodInfo", objMethodInfos);
+        return ProcessAdjustmentInfo.builder()
+                .adjustmentExtendResult(jsonObject)
+                .build();
     }
 
     /**
@@ -548,21 +693,14 @@ public class Debug4jProcessOperator {
                     Files.createDirectories(path);
                 } catch (Exception e) {
                     e.printStackTrace();
-                    return ProcessAdjustmentInfo.builder()
-                            .adjustmentResult(Map.of("//errMsg", e.getClass().getName() + ": " + e.getMessage()))
-                            .build();
+                    return adjustmentError(e);
                 }
             } else {
-                return ProcessAdjustmentInfo.builder()
-                        .adjustmentResult(Map.of("//errMsg", "fileDir is not exist"))
-                        .build();
+                return adjustmentError("fileDir is not exist");
             }
         } else {
             if (!Files.isDirectory(path)) {
-                ;
-                return ProcessAdjustmentInfo.builder()
-                        .adjustmentResult(Map.of("//errMsg", "fileDir is not directory"))
-                        .build();
+                return adjustmentError("fileDir is not directory");
             }
         }
         Map<String, String> result = new LinkedHashMap<>();
@@ -638,5 +776,23 @@ public class Debug4jProcessOperator {
             e.printStackTrace();
         }
         return 0;
+    }
+
+    /**
+     * 调整异常
+     *
+     * @param msg
+     * @return
+     */
+    private static ProcessAdjustmentInfo adjustmentError(String msg) {
+        return ProcessAdjustmentInfo.builder()
+                .adjustmentResult(Map.of("//errMsg", msg))
+                .build();
+    }
+
+    private static ProcessAdjustmentInfo adjustmentError(Exception e) {
+        return ProcessAdjustmentInfo.builder()
+                .adjustmentResult(Map.of("//errMsg", e.getClass().getName() + ": " + e.getMessage()))
+                .build();
     }
 }

@@ -1,6 +1,8 @@
 package com.k4ln.debug4j.boot.starter.hook;
 
+import cn.hutool.extra.spring.SpringUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationContext;
 import org.springframework.core.env.*;
 
 import java.lang.reflect.InvocationTargetException;
@@ -111,6 +113,16 @@ public class PropertySourcesHandler {
         if (adjustmentProperties instanceof Map map) {
             //noinspection unchecked
             SOURCE_DATA.putAll(map);
+            new Thread(() -> {
+                try {
+                    ApplicationContext applicationContext = SpringUtil.getApplicationContext();
+                    Class<?> aClass = Class.forName("org.springframework.cloud.endpoint.event.RefreshEvent");
+                    Object refreshEvent = aClass.getDeclaredConstructor(Object.class, Object.class, String.class).newInstance(applicationContext, null, "debug4j config refresh");
+                    applicationContext.publishEvent(refreshEvent);
+                } catch (Exception e) {
+                    log.warn("publishEvent failed with error:{}", e.getCause() + ":" + e.getMessage());
+                }
+            }).start();
         }
         return SOURCE_DATA.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue() == null ? "" : String.valueOf(e.getValue()), (a, b) -> b, LinkedHashMap::new));
     }

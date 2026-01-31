@@ -1,21 +1,32 @@
 package com.k4ln.debug4j.boot.starter.hook;
 
 import cn.hutool.extra.spring.SpringUtil;
+import org.springframework.aop.framework.AopProxyUtils;
+
+import java.util.Map;
 
 public class SpringBeanHandler {
 
     /**
      * 获取 Spring Bean
      * 支持debug断点
-     * 支持AOP切面
+     * objTypeParam=1 支持属性获取修改，不支持aop；objTypeParam=2 支持aop，不支持属性获取修改；
      *
-     * @param beanName
+     * @param hookObj
      * @return
      */
-    public static Object getBean(Object beanName) {
-        if (beanName instanceof String) {
+    public static Object getBean(Object hookObj) {
+        if (hookObj instanceof Map) {
             try {
-                return SpringUtil.getBean((String) beanName);
+                Map hookObjMap = (Map) hookObj;
+                String objTypeParam = (String) hookObjMap.get("objTypeParam");
+                String objName = (String) hookObjMap.get("objName");
+                if ("1".equals(objTypeParam)) {
+                    Object bean = SpringUtil.getBean(objName);
+                    return AopProxyUtils.getSingletonTarget(bean);
+                } else {
+                    return SpringUtil.getBean(objName);
+                }
             } catch (Exception e) {
                 e.printStackTrace();
             }
