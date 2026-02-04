@@ -1,19 +1,20 @@
 package com.k4ln.debug4j.core.attach.jvm.logger;
 
+import cn.hutool.core.codec.Base64Decoder;
+import cn.hutool.core.codec.Base64Encoder;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 
 import java.io.PrintStream;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class LogReplayHandler {
 
@@ -25,7 +26,7 @@ public class LogReplayHandler {
     /**
      * 日志接收器
      */
-    public static final Consumer<String> lineConsumer = logQueue::add;
+    public static final Consumer<String> lineConsumer = line -> logQueue.add(line.replaceAll("\u001B\\[[;\\d]*m", ""));
 
     /**
      * 日志重放映射
@@ -45,8 +46,27 @@ public class LogReplayHandler {
                 logQueue.drainTo(lines, 99);
                 for (Map.Entry<LogReplayInfo, LogReplayFileWriter> replayWriter : replayWriters.entrySet()) {
                     if (replayWriter.getValue() != null) {
+                        List<String> matchLines = new ArrayList<>(100);
                         try {
-                            replayWriter.getValue().writeLines(lines);
+                            if (replayWriter.getKey().getMatchType().equals(LogReplayInfo.MatchType.ALL)) {
+                                replayWriter.getValue().writeLines(lines);
+                            } else if (replayWriter.getKey().getMatchType().equals(LogReplayInfo.MatchType.CONTAIN)) {
+                                for (String line : lines) {
+                                    if (line.contains(replayWriter.getKey().getMatchString())) {
+                                        matchLines.add(line);
+                                    }
+                                }
+                            } else if (replayWriter.getKey().getMatchType().equals(LogReplayInfo.MatchType.REGEX)) {
+                                for (String line : lines) {
+                                    replayWriter.getKey().getMatcher().reset(line);
+                                    if (replayWriter.getKey().getMatcher().find()) {
+                                        matchLines.add(line);
+                                    }
+                                }
+                            }
+                            if (!matchLines.isEmpty()) {
+                                replayWriter.getValue().writeLines(matchLines);
+                            }
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
@@ -68,7 +88,7 @@ public class LogReplayHandler {
      */
     public static void replay(Map<String, String> adjustmentContent) {
         String logReplayInfoStr = adjustmentContent.get("logReplayInfo");
-        if (!StrUtil.isNotBlank(logReplayInfoStr)) {
+        if (StrUtil.isNotBlank(logReplayInfoStr)) {
             LogReplayInfo logReplayInfo = JSON.parseObject(adjustmentContent.get("logReplayInfo"), LogReplayInfo.class);
             if (logReplayInfoCheck(logReplayInfo)) {
                 if (!logReplayThread.isAlive()) {
@@ -93,7 +113,13 @@ public class LogReplayHandler {
     private static boolean logReplayInfoCheck(LogReplayInfo logReplayInfo) {
         if (logReplayInfo != null && !logReplayInfo.getMatchType().equals(LogReplayInfo.MatchType.ALL)) {
             if (logReplayInfo.getOperationType().equals(LogReplayInfo.OperationType.ADD)) {
-                return StrUtil.isNotBlank(logReplayInfo.getMatchString());
+                if (StrUtil.isNotBlank(logReplayInfo.getMatchString())) {
+                    if (logReplayInfo.getMatchType().equals(LogReplayInfo.MatchType.REGEX)) {
+                        return replayWriters.keySet().stream().noneMatch(e -> e.getMatchType().equals(logReplayInfo.getMatchType()) && Base64Encoder.encode(e.getMatchString()).equals(logReplayInfo.getMatchString()));
+                    } else if (logReplayInfo.getMatchType().equals(LogReplayInfo.MatchType.CONTAIN)) {
+                        return replayWriters.keySet().stream().noneMatch(e -> e.getMatchType().equals(logReplayInfo.getMatchType()) && e.getMatchString().equals(logReplayInfo.getMatchString()));
+                    }
+                }
             } else {
                 return StrUtil.isNotBlank(logReplayInfo.getLogFileName());
             }
@@ -109,6 +135,13 @@ public class LogReplayHandler {
     private synchronized static void replayListener(LogReplayInfo logReplayInfo) {
         if (logReplayInfo.getOperationType().equals(LogReplayInfo.OperationType.ADD)) {
             try {
+                if (logReplayInfo.getMatchType().equals(LogReplayInfo.MatchType.REGEX)) {
+                    String realMatchString = Base64Decoder.decodeStr(logReplayInfo.getMatchString());
+                    logReplayInfo.setMatchString(realMatchString);
+                    Pattern pattern = Pattern.compile(realMatchString);
+                    Matcher matcher = pattern.matcher("");
+                    logReplayInfo.setMatcher(matcher);
+                }
                 String logFileName = "debug4j-log-replay-" + System.currentTimeMillis() + ".log";
                 logReplayInfo.setLogFileName(logFileName);
                 replayWriters.put(logReplayInfo, new LogReplayFileWriter(Path.of(logFileName)));
@@ -146,6 +179,8 @@ public class LogReplayHandler {
      * @return
      */
     public static JSONObject getReplayInfo() {
-        return JSONObject.of("logReplayInfos", replayWriters.keySet());
+        List<LogReplayInfo> sortedKeys = new ArrayList<>(replayWriters.keySet());
+        sortedKeys.sort(Comparator.comparing(LogReplayInfo::getLogFileName));
+        return JSONObject.of("logReplayInfos", sortedKeys);
     }
 }
