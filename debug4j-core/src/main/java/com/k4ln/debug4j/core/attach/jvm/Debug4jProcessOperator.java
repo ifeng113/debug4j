@@ -19,6 +19,7 @@ import com.k4ln.debug4j.common.utils.SystemUtils;
 import com.k4ln.debug4j.core.Debugger;
 import com.k4ln.debug4j.core.attach.Debug4jAttachOperator;
 import com.k4ln.debug4j.core.attach.dto.*;
+import com.k4ln.debug4j.core.attach.jvm.logger.LogReplayHandler;
 import com.k4ln.debug4j.core.attach.jvm.logger.LoggerInfo;
 import com.k4ln.debug4j.core.attach.jvm.logger.LoggerOperator;
 import com.sun.management.HotSpotDiagnosticMXBean;
@@ -526,6 +527,12 @@ public class Debug4jProcessOperator {
                     e.printStackTrace();
                     return adjustmentError(e);
                 }
+            }
+            case log_replay -> {
+                LogReplayHandler.replay(adjustmentReqMessage.getAdjustmentContent());
+                return ProcessAdjustmentInfo.builder()
+                        .adjustmentExtendResult(LogReplayHandler.getReplayInfo())
+                        .build();
             }
         }
         return ProcessAdjustmentInfo.builder().build();

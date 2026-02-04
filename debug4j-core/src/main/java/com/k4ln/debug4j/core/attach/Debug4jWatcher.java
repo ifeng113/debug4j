@@ -21,6 +21,9 @@ import java.util.stream.StreamSupport;
 
 import static com.k4ln.debug4j.core.client.SocketClient.callbackMessage;
 
+/**
+ * fixme 定时过期更改为：前端主动自动续期，减少冗余交互；SSE无任何连接时，关闭监听
+ */
 @Slf4j
 public class Debug4jWatcher {
 

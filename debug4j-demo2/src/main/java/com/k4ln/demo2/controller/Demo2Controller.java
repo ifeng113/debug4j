@@ -81,6 +81,14 @@ public class Demo2Controller {
         return Result.ok("demo2_p2");
     }
 
+    @GetMapping("/p3")
+    public Result<String> demo3(@RequestParam(required = false) List<String> pps, @RequestParam(required = false) String p22) {
+        int a = 9;
+        int b = 0;
+        int c = a / b;
+        return Result.ok("demo2_p2");
+    }
+
     public void voidTest(Result<String>[] k101) {
         log.info("voidTest:{}", JSON.toJSONString(k101));
     }
