@@ -21,30 +21,30 @@ import java.util.stream.StreamSupport;
 
 import static com.k4ln.debug4j.core.client.SocketClient.callbackMessage;
 
-/**
- * fixme 定时过期更改为：前端主动自动续期，减少冗余交互；SSE无任何连接时，关闭监听
- */
 @Slf4j
 public class Debug4jWatcher {
 
     /**
      * filePath -> CommandTaskReqMessage
      */
-    private final static TimedCache<String, TaskInfo> watcher = CacheUtil.newTimedCache(0);
+    private static TimedCache<String, TaskInfo> watcher; // 持续30秒，等待服务端心跳
 
-    public Debug4jWatcher() {
-        // 仅过期移除触发
-        watcher.setListener((key, cachedObject) -> cachedObject.getTailer().stop());
+    private static void initWatcher() {
+        if (watcher == null) {
+            watcher = CacheUtil.newTimedCache(30 * 1000);
+            // 仅过期移除触发（获取过程中会先同步检查是否过期，如果过期会优先执行监听器逻辑再返回）
+            watcher.setListener((key, cachedObject) -> cachedObject.getTailer().stop());
+            watcher.schedulePrune(1000);
+        }
     }
 
     /**
      * 清理所有监听器
      */
     public static void clear() {
-        watcher.keySet().forEach(e -> {
-            watcher.get(e).getTailer().stop();
-            watcher.remove(e);
-        });
+        initWatcher();
+        watcher.keySet().forEach(e -> watcher.get(e).getTailer().stop());
+        watcher.clear();
     }
 
     /**
@@ -53,6 +53,7 @@ public class Debug4jWatcher {
      * @return
      */
     public static List<CommandTaskReqMessage> getTask() {
+        initWatcher();
         if (watcher.isEmpty()) {
             return new ArrayList<>();
         }
@@ -68,36 +69,31 @@ public class Debug4jWatcher {
      * @return
      */
     public synchronized static List<CommandTaskReqMessage> openTask(CommandTaskReqMessage reqMessage) {
+        initWatcher();
         File file = FileUtil.file(reqMessage.getFilePath());
-        if (!file.exists()) {
-            reqMessage.setFilePath(file.getAbsolutePath() + " not exists");
-            reqMessage.setExpire(-1);
+        if (file.exists() && !file.isDirectory()) {
+            TaskInfo watchTask = watcher.get(reqMessage.getFilePath());
+            if (watchTask == null) {
+                Tailer tailer = new Tailer(file, line -> {
+                    if (StrUtil.isNotBlank(line)) {
+                        callbackMessage(HashUtil.fnvHash(reqMessage.getReqId()), ProtocolTypeEnum.COMMAND,
+                                CommandTaskTailRespMessage.buildTaskTailRespMessage(reqMessage.getFilePath(), line));
+                    }
+                }, reqMessage.getInitReadLine());
+                TaskInfo taskInfo = TaskInfo.builder()
+                        .reqId(reqMessage.getReqId())
+                        .filePath(reqMessage.getFilePath())
+                        .initReadLine(reqMessage.getInitReadLine())
+                        .lastListenTime(System.currentTimeMillis())
+                        .tailer(tailer)
+                        .build();
+                watcher.put(reqMessage.getFilePath(), taskInfo);
+                tailer.start(true);
+            } else {
+                watchTask.setLastListenTime(System.currentTimeMillis());
+            }
         }
-        if (file.isDirectory()) {
-            reqMessage.setFilePath(file.getAbsolutePath() + " is directory");
-            reqMessage.setExpire(-1);
-        }
-        if (watcher.containsKey(reqMessage.getFilePath())) {
-            reqMessage.setFilePath(file.getAbsolutePath() + " is already exists");
-            reqMessage.setExpire(-1);
-        }
-        if (reqMessage.getExpire() != -1) {
-            Tailer tailer = new Tailer(file, line -> {
-                if (StrUtil.isNotBlank(line)) {
-                    callbackMessage(HashUtil.fnvHash(reqMessage.getReqId()), ProtocolTypeEnum.COMMAND,
-                            CommandTaskTailRespMessage.buildTaskTailRespMessage(reqMessage.getFilePath(), line));
-                }
-            }, 10);
-            TaskInfo taskInfo = BeanUtil.toBean(reqMessage, TaskInfo.class);
-            taskInfo.setTailer(tailer);
-            watcher.put(reqMessage.getFilePath(), taskInfo, reqMessage.getExpire() * 60 * 1000);
-            tailer.start(true);
-        }
-        List<CommandTaskReqMessage> task = new ArrayList<>(getTask());
-        if (reqMessage.getExpire() == -1) {
-            task.add(reqMessage);
-        }
-        return task;
+        return getTask();
     }
 
     /**
@@ -107,7 +103,8 @@ public class Debug4jWatcher {
      * @return
      */
     public synchronized static List<CommandTaskReqMessage> closeTask(CommandTaskReqMessage reqMessage) {
-        TaskInfo taskInfo = watcher.get(reqMessage.getFilePath());
+        initWatcher();
+        TaskInfo taskInfo = watcher.get(reqMessage.getFilePath(), false);
         if (taskInfo != null) {
             taskInfo.getTailer().stop();
             watcher.remove(reqMessage.getFilePath());

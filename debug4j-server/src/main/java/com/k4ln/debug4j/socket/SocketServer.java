@@ -153,7 +153,7 @@ public class SocketServer {
                         } else if (command.getCommand().equals(CommandTypeEnum.ATTACH_RESP_TASK_DETAILS)) {
                             String jsonString = JSON.toJSONString(command.getData());
                             CommandTaskTailRespMessage taskResp = JSON.parseObject(jsonString, CommandTaskTailRespMessage.class);
-                            attachHub.pushSseEmitter(session.getSessionID() + "@" + taskResp.getFilePath(), taskResp.getLine());
+                            attachHub.pushSseEmitter(session.getSessionID(), taskResp);
                         } else if (command.getCommand().equals(CommandTypeEnum.ATTACH_RESP_PROCESS_ARG_DETAILS)) {
                             String jsonString = JSON.toJSONString(command.getData());
                             CommandProcessRespMessage processResp = JSON.parseObject(jsonString, CommandProcessRespMessage.class);

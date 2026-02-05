@@ -15,7 +15,7 @@ public class AttachTaskEmitter {
     /**
      * 登录ID
      */
-    private String loginID;
+    private String loginId;
 
     /**
      * 推送器

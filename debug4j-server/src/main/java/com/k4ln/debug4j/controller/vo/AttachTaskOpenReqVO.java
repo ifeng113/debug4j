@@ -24,7 +24,8 @@ public class AttachTaskOpenReqVO {
     private String filePath;
 
     /**
-     * 监听超时（分钟）
+     * 预读行数
      */
-    private Integer expire;
+    @Builder.Default
+    private Integer initReadLine = 10;
 }

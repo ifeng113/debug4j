@@ -10,6 +10,7 @@ import com.k4ln.debug4j.common.response.Result;
 import com.k4ln.debug4j.controller.vo.*;
 import com.k4ln.debug4j.service.AttachHub;
 import com.k4ln.debug4j.service.AttachService;
+import com.k4ln.debug4j.socket.SocketServer;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +38,9 @@ public class AttachController {
 
     @Resource
     AttachHub attachHub;
+
+    @Resource
+    SocketServer socketServer;
 
     /**
      * ping客户端
@@ -177,7 +181,7 @@ public class AttachController {
     public SseEmitter getTaskDetails(@RequestParam("path") String path, @RequestParam("sessionId") String sessionId,
                                      @RequestParam("token") String token, @RequestParam("loginId") String loginId) {
         if (SaManager.getConfig().getHttpBasic().equals(SaBase64Util.decode(token))) {
-            return attachHub.getSseEmitter(sessionId + "@" + path, loginId);
+            return attachHub.getSseEmitter(sessionId, path, loginId, socketServer);
         } else {
             SaHolder.getResponse().setStatus(401);
             throw new NotHttpBasicAuthException().setCode(SaErrorCode.CODE_10311);

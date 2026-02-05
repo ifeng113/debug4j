@@ -5,6 +5,7 @@ import cn.hutool.cache.impl.TimedCache;
 import com.alibaba.fastjson2.JSON;
 import com.k4ln.debug4j.common.daemon.Debug4jMode;
 import com.k4ln.debug4j.common.protocol.command.message.CommandInfoMessage;
+import com.k4ln.debug4j.common.protocol.command.message.CommandTaskTailRespMessage;
 import com.k4ln.debug4j.common.response.exception.abort.BusinessAbort;
 import com.k4ln.debug4j.config.SocketServerProperties;
 import com.k4ln.debug4j.service.dto.AttachFileTask;
@@ -41,13 +42,14 @@ public class AttachHub {
     private final TimedCache<Integer, AttachFileTask> attachFileTask = CacheUtil.newTimedCache(60 * 60 * 1000);
 
     /**
-     * filePath -> AttachTaskEmitter
+     * filePath -> AttachTaskEmitter（5分钟）
      */
-    private final TimedCache<String, List<AttachTaskEmitter>> attachTaskEmitters = CacheUtil.newTimedCache(30 * 60 * 1000);
+    private final TimedCache<String, List<AttachTaskEmitter>> attachTaskEmitters = CacheUtil.newTimedCache(5 * 60 * 1000);
 
     public AttachHub() {
-        // 仅过期移除触发
+        // 仅过期移除触发（获取过程中会先同步检查是否过期，如果过期会优先执行监听器逻辑再返回）
         attachTaskEmitters.setListener((key, cachedObject) -> cachedObject.forEach(e -> e.getSseEmitter().complete()));
+        attachTaskEmitters.schedulePrune(5000);
     }
 
     /**
@@ -135,15 +137,16 @@ public class AttachHub {
     /**
      * 推送数据至推送器
      *
-     * @param key
-     * @param data
+     * @param sessionId
+     * @param taskResp
      */
-    public void pushSseEmitter(String key, String data) {
+    public void pushSseEmitter(String sessionId, CommandTaskTailRespMessage taskResp) {
+        String key = getSseEmitterKey(sessionId, taskResp.getFilePath());
         List<AttachTaskEmitter> taskEmitters = attachTaskEmitters.get(key);
         if (taskEmitters != null) {
             taskEmitters.forEach(e -> {
                 try {
-                    e.getSseEmitter().send(data);
+                    e.getSseEmitter().send(taskResp.getLine());
                 } catch (Exception ex) {
                     log.error("pushSseEmitter error:{}", ex.getMessage());
                 }
@@ -154,15 +157,19 @@ public class AttachHub {
     /**
      * 绑定推送器
      *
-     * @param key
+     * @param sessionId
+     * @param path
      * @param loginId
+     * @param socketServer
      * @return
      */
-    public SseEmitter getSseEmitter(String key, String loginId) {
+    public SseEmitter getSseEmitter(String sessionId, String path, String loginId, SocketServer socketServer) {
+        sessionId = clientSessionCheck(sessionId, socketServer);
+        String key = getSseEmitterKey(sessionId, path);
         List<AttachTaskEmitter> taskEmitters = attachTaskEmitters.get(key);
         if (taskEmitters != null) {
             for (AttachTaskEmitter emitter : taskEmitters) {
-                if (emitter.getLoginID().equals(loginId)) {
+                if (emitter.getLoginId().equals(loginId)) {
                     return emitter.getSseEmitter();
                 }
             }
@@ -170,12 +177,12 @@ public class AttachHub {
             // rd：ArrayList（taskEmitters.forEach会在taskEmitters对象修改时触发ConcurrentModificationException）
             taskEmitters = new CopyOnWriteArrayList<>();
         }
-        SseEmitter sseEmitter = new SseEmitter(30 * 60 * 1000L);
+        SseEmitter sseEmitter = new SseEmitter(60 * 60 * 1000L); // 最长链接1小时
         sseEmitter.onCompletion(() -> removeSseEmitter(key, loginId));
         sseEmitter.onError(throwable -> removeSseEmitter(key, loginId));
         sseEmitter.onTimeout(() -> removeSseEmitter(key, loginId));
         AttachTaskEmitter taskEmitter = AttachTaskEmitter.builder()
-                .loginID(loginId)
+                .loginId(loginId)
                 .sseEmitter(sseEmitter)
                 .build();
         taskEmitters.add(taskEmitter);
@@ -190,11 +197,11 @@ public class AttachHub {
      * @param loginId
      */
     public void removeSseEmitter(String key, String loginId) {
-        List<AttachTaskEmitter> taskEmitters = attachTaskEmitters.get(key);
+        List<AttachTaskEmitter> taskEmitters = attachTaskEmitters.get(key, false);
         if (taskEmitters != null) {
             if (loginId != null) {
                 for (AttachTaskEmitter emitter : taskEmitters) {
-                    if (emitter.getLoginID().equals(loginId)) {
+                    if (emitter.getLoginId().equals(loginId)) {
                         emitter.getSseEmitter().complete();
                         taskEmitters.remove(emitter);
                         return;
@@ -208,5 +215,9 @@ public class AttachHub {
                 attachTaskEmitters.remove(key);
             }
         }
+    }
+
+    public static String getSseEmitterKey(String sessionId, String path) {
+        return sessionId + "@" + path;
     }
 }

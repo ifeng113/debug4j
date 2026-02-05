@@ -23,9 +23,14 @@ public class TaskInfo {
     private String filePath;
 
     /**
-     * 监听超时（分钟）
+     * 预读行数
      */
-    private Integer expire;
+    private Integer initReadLine;
+
+    /**
+     * 监听时间
+     */
+    private Long lastListenTime;
 
     /**
      * 文件监听器

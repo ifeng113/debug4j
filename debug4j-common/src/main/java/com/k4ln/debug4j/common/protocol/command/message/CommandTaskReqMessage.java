@@ -25,9 +25,14 @@ public class CommandTaskReqMessage {
     private String filePath;
 
     /**
-     * 监听超时（分钟）
+     * 预读行数
      */
-    private Integer expire;
+    private Integer initReadLine;
+
+    /**
+     * 监听时间
+     */
+    private Long lastListenTime;
 
     public static byte[] buildTaskAllMessage(String reqId) {
         return (JSON.toJSONString(Command.builder()
@@ -39,13 +44,13 @@ public class CommandTaskReqMessage {
         ).getBytes();
     }
 
-    public static byte[] buildTaskOpenMessage(String reqId, String filePath, Integer expire) {
+    public static byte[] buildTaskOpenMessage(String reqId, String filePath, Integer initReadLine) {
         return (JSON.toJSONString(Command.builder()
                 .command(CommandTypeEnum.ATTACH_REQ_TASK_OPEN)
                 .data(CommandTaskReqMessage.builder()
                         .reqId(reqId)
                         .filePath(filePath)
-                        .expire(expire)
+                        .initReadLine(initReadLine)
                         .build())
                 .build())
         ).getBytes();

@@ -12,13 +12,23 @@ import lombok.NoArgsConstructor;
 public class AttachTaskRespVO {
 
     /**
+     * 请求ID
+     */
+    private String reqId;
+
+    /**
      * 文件路径
      */
     private String filePath;
 
     /**
-     * 监听超时（分钟）
+     * 预读行数
      */
-    private Integer expire;
+    private Integer initReadLine;
+
+    /**
+     * 监听时间
+     */
+    private Long lastListenTime;
 
 }
