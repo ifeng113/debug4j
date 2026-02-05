@@ -148,7 +148,7 @@ public class LogReplayHandler {
                     Matcher matcher = pattern.matcher("");
                     logReplayInfo.setMatcher(matcher);
                 }
-                String logFileName = "debug4j-log-replay-" + System.currentTimeMillis() + ".log";
+                String logFileName = "debug4j-log-replay-" + System.currentTimeMillis() + "-" + logReplayInfo.getMatchType() + ".log";
                 logReplayInfo.setLogFileName(logFileName);
                 replayWriters.put(logReplayInfo, new LogReplayFileWriter(Path.of(logFileName)));
                 Thread.sleep(1);
@@ -190,7 +190,7 @@ public class LogReplayHandler {
      */
     public static JSONObject getReplayInfo() {
         List<LogReplayInfo> sortedKeys = new ArrayList<>(replayWriters.keySet());
-        sortedKeys.sort(Comparator.comparing(LogReplayInfo::getLogFileName));
+        sortedKeys.sort(Comparator.comparing(LogReplayInfo::getLogFileName).reversed());
         return JSONObject.of("logReplayInfos", sortedKeys);
     }
 }

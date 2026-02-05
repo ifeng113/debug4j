@@ -15,7 +15,7 @@ public enum AdjustmentTypeEnum {
     file_upload,            // 上传文件
     file_remove,            // 删除文件（夹）
     file_download,          // 下载文件（夹）
-    file_reader,            // 文件读取 fixme 查找文件内容 + 支持压缩包
+    file_reader,            // 文件读取
     obj_info,               // 对象信息
     obj_field,              // 对象属性
     obj_method,             // 对象方法

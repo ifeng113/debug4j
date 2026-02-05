@@ -1,5 +1,6 @@
 package com.k4ln.debug4j.core.attach.jvm;
 
+import cn.hutool.core.codec.Base64Decoder;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.net.NetUtil;
 import cn.hutool.core.util.NumberUtil;
@@ -20,6 +21,7 @@ import com.k4ln.debug4j.core.Debugger;
 import com.k4ln.debug4j.core.attach.Debug4jAttachOperator;
 import com.k4ln.debug4j.core.attach.dto.*;
 import com.k4ln.debug4j.core.attach.jvm.logger.LogReplayHandler;
+import com.k4ln.debug4j.core.attach.jvm.logger.LogReplayInfo;
 import com.k4ln.debug4j.core.attach.jvm.logger.LoggerInfo;
 import com.k4ln.debug4j.core.attach.jvm.logger.LoggerOperator;
 import com.sun.management.HotSpotDiagnosticMXBean;
@@ -30,26 +32,24 @@ import org.apache.sshd.server.SshServer;
 import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider;
 import org.apache.sshd.sftp.server.SftpSubsystemFactory;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.RandomAccessFile;
+import java.io.*;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.math.RoundingMode;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
 import java.time.Duration;
 import java.util.*;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.zip.GZIPInputStream;
 
 import static com.k4ln.debug4j.common.utils.SocketProtocolUtil.*;
 import static com.k4ln.debug4j.common.utils.SystemUtils.getClassName;
@@ -447,6 +447,51 @@ public class Debug4jProcessOperator {
                     return adjustmentError(e);
                 }
             }
+            case file_reader -> {
+                Map<String, String> adjustmentContent = adjustmentReqMessage.getAdjustmentContent();
+                String filePath = adjustmentContent.get("filePath");
+                String matchString = adjustmentContent.get("matchString");
+                if (StrUtil.isNotBlank(filePath) && StrUtil.isNotBlank(matchString)) {
+                    Path path = Paths.get(filePath);
+                    if (Files.exists(path) && Files.isDirectory(path)) {
+                        JSONObject jsonObject = new JSONObject();
+                        List<String> content = new ArrayList<>();
+                        jsonObject.put("content", content);
+                        try (var stream = "true".equals(adjustmentContent.get("childPath")) ? Files.walk(path) : Files.list(path)) {
+                            int matchSize = StrUtil.isNotBlank(adjustmentContent.get("matchSize")) ? Integer.parseInt(adjustmentContent.get("matchSize")) : 1000;
+                            String filenameFilter = StrUtil.isNotBlank(adjustmentContent.get("filenameFilter")) ? adjustmentContent.get("filenameFilter") : "*";
+                            PathMatcher matcher = FileSystems.getDefault().getPathMatcher("glob:" + filenameFilter);
+                            LogReplayInfo.MatchType matchType = LogReplayInfo.MatchType.REGEX.name().equals(adjustmentContent.get("matchType")) ? LogReplayInfo.MatchType.REGEX : LogReplayInfo.MatchType.CONTAIN;
+                            Pattern pattern = matchType.equals(LogReplayInfo.MatchType.REGEX) ? Pattern.compile(Base64Decoder.decodeStr(matchString)) : null;
+                            stream.filter(Files::isRegularFile).filter(p -> matcher.matches(p.getFileName())).sorted(Comparator.comparing(p -> p.getParent().equals(path) ? 0 : 1)).forEach(p -> {
+                                if (content.size() > matchSize) return;
+                                try (InputStream is = open(p); BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
+                                    String line;
+                                    while ((line = br.readLine()) != null) {
+                                        if (matchType.equals(LogReplayInfo.MatchType.REGEX) ? pattern.matcher(line).find() : line.contains(matchString)) {
+                                            content.add(p.getParent().toString() + " " + p.getFileName() + " " + line.replaceAll("\u001B\\[[;\\d]*m", ""));
+                                            if (content.size() >= matchSize) {
+                                                break;
+                                            }
+                                        }
+                                    }
+                                } catch (Exception e) {
+                                    log.warn("filename:{} fileReader error:{}", p.getFileName(), e.getClass() + ":" + e.getMessage());
+                                }
+                            });
+                        } catch (Exception e) {
+                            return adjustmentError(e);
+                        }
+                        return ProcessAdjustmentInfo.builder()
+                                .adjustmentExtendResult(jsonObject)
+                                .build();
+                    } else {
+                        return adjustmentError("filePath does not exist or it is not a directory.");
+                    }
+                } else {
+                    return adjustmentError("filePath or matchString is empty");
+                }
+            }
             case obj_info -> {
                 return getObjInfo(adjustmentReqMessage);
             }
@@ -536,6 +581,25 @@ public class Debug4jProcessOperator {
             }
         }
         return ProcessAdjustmentInfo.builder().build();
+    }
+
+    /**
+     * 获取文件流
+     *
+     * @param file
+     * @return
+     * @throws IOException
+     */
+    private static InputStream open(Path file) throws IOException {
+        BufferedInputStream in = new BufferedInputStream(Files.newInputStream(file), 64 * 1024);
+        in.mark(2);
+        int b1 = in.read();
+        int b2 = in.read();
+        in.reset();
+        if (b1 == 0x1F && b2 == 0x8B) {
+            return new GZIPInputStream(in, 64 * 1024);
+        }
+        return in;
     }
 
     /**
