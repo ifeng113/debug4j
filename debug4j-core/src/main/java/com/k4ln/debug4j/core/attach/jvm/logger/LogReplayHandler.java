@@ -5,6 +5,7 @@ import cn.hutool.core.codec.Base64Encoder;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.PrintStream;
 import java.nio.file.Path;
@@ -16,6 +17,7 @@ import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+@Slf4j
 public class LogReplayHandler {
 
     /**
@@ -36,47 +38,51 @@ public class LogReplayHandler {
     /**
      * 日志重放处理线程
      */
-    public static final Thread logReplayThread = new Thread(() -> {
-        List<String> lines = new ArrayList<>(100);
-        while (true) {
-            try {
-                lines.clear();
-                String first = logQueue.take();
-                lines.add(first);
-                logQueue.drainTo(lines, 99);
-                for (Map.Entry<LogReplayInfo, LogReplayFileWriter> replayWriter : replayWriters.entrySet()) {
-                    if (replayWriter.getValue() != null) {
-                        List<String> matchLines = new ArrayList<>(100);
-                        try {
-                            if (replayWriter.getKey().getMatchType().equals(LogReplayInfo.MatchType.ALL)) {
-                                replayWriter.getValue().writeLines(lines);
-                            } else if (replayWriter.getKey().getMatchType().equals(LogReplayInfo.MatchType.CONTAIN)) {
-                                for (String line : lines) {
-                                    if (line.contains(replayWriter.getKey().getMatchString())) {
-                                        matchLines.add(line);
+    public static Thread logReplayThread = buildLogReplayThread();
+
+    private static Thread buildLogReplayThread() {
+        return new Thread(() -> {
+            List<String> lines = new ArrayList<>(100);
+            while (true) {
+                try {
+                    lines.clear();
+                    String first = logQueue.take();
+                    lines.add(first);
+                    logQueue.drainTo(lines, 99);
+                    for (Map.Entry<LogReplayInfo, LogReplayFileWriter> replayWriter : replayWriters.entrySet()) {
+                        if (replayWriter.getValue() != null) {
+                            List<String> matchLines = new ArrayList<>(100);
+                            try {
+                                if (replayWriter.getKey().getMatchType().equals(LogReplayInfo.MatchType.ALL)) {
+                                    replayWriter.getValue().writeLines(lines);
+                                } else if (replayWriter.getKey().getMatchType().equals(LogReplayInfo.MatchType.CONTAIN)) {
+                                    for (String line : lines) {
+                                        if (line.contains(replayWriter.getKey().getMatchString())) {
+                                            matchLines.add(line);
+                                        }
+                                    }
+                                } else if (replayWriter.getKey().getMatchType().equals(LogReplayInfo.MatchType.REGEX)) {
+                                    for (String line : lines) {
+                                        replayWriter.getKey().getMatcher().reset(line);
+                                        if (replayWriter.getKey().getMatcher().find()) {
+                                            matchLines.add(line);
+                                        }
                                     }
                                 }
-                            } else if (replayWriter.getKey().getMatchType().equals(LogReplayInfo.MatchType.REGEX)) {
-                                for (String line : lines) {
-                                    replayWriter.getKey().getMatcher().reset(line);
-                                    if (replayWriter.getKey().getMatcher().find()) {
-                                        matchLines.add(line);
-                                    }
+                                if (!matchLines.isEmpty()) {
+                                    replayWriter.getValue().writeLines(matchLines);
                                 }
+                            } catch (Exception e) {
+                                e.printStackTrace();
                             }
-                            if (!matchLines.isEmpty()) {
-                                replayWriter.getValue().writeLines(matchLines);
-                            }
-                        } catch (Exception e) {
-                            e.printStackTrace();
                         }
                     }
+                } catch (InterruptedException e) {
+                    log.warn("logReplayThread stop");
                 }
-            } catch (InterruptedException e) {
-                e.printStackTrace();
             }
-        }
-    });
+        });
+    }
 
     /**
      * 查询/订阅重放日志
@@ -91,7 +97,7 @@ public class LogReplayHandler {
         if (StrUtil.isNotBlank(logReplayInfoStr)) {
             LogReplayInfo logReplayInfo = JSON.parseObject(adjustmentContent.get("logReplayInfo"), LogReplayInfo.class);
             if (logReplayInfoCheck(logReplayInfo)) {
-                if (!logReplayThread.isAlive()) {
+                if (!logReplayThread.isAlive() && logReplayInfo.getOperationType().equals(LogReplayInfo.OperationType.ADD)) {
                     logReplayThread.start();
                     LogReplayOutputStream replayOutputStream = new LogReplayOutputStream(System.out, lineConsumer);
                     System.setOut(new PrintStream(replayOutputStream, true));
@@ -166,6 +172,10 @@ public class LogReplayHandler {
                 try {
                     replayWriters.get(matchAllLogReplayInfo).close();
                     replayWriters.remove(matchAllLogReplayInfo);
+                    System.setOut(System.out);
+                    logQueue.clear();
+                    logReplayThread.interrupt();
+                    logReplayThread = buildLogReplayThread();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
