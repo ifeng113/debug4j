@@ -45,6 +45,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -463,16 +464,49 @@ public class Debug4jProcessOperator {
                             PathMatcher matcher = FileSystems.getDefault().getPathMatcher("glob:" + filenameFilter);
                             LogReplayInfo.MatchType matchType = LogReplayInfo.MatchType.REGEX.name().equals(adjustmentContent.get("matchType")) ? LogReplayInfo.MatchType.REGEX : LogReplayInfo.MatchType.CONTAIN;
                             Pattern pattern = matchType.equals(LogReplayInfo.MatchType.REGEX) ? Pattern.compile(Base64Decoder.decodeStr(matchString)) : null;
+                            int beforeSize = StrUtil.isNotBlank(adjustmentContent.get("beforeSize")) ? Integer.parseInt(adjustmentContent.get("beforeSize")) : 0;
+                            int afterSize = StrUtil.isNotBlank(adjustmentContent.get("afterSize")) ? Integer.parseInt(adjustmentContent.get("afterSize")) : 0;
+                            Deque<String> prevLines = new ArrayDeque<>(beforeSize);
+                            AtomicInteger afterRemain = new AtomicInteger();
                             stream.filter(Files::isRegularFile).filter(p -> matcher.matches(p.getFileName())).sorted(Comparator.comparing(p -> p.getParent().equals(path) ? 0 : 1)).forEach(p -> {
                                 if (content.size() > matchSize) return;
                                 try (InputStream is = open(p); BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
+//                                    String line;
+//                                    while ((line = br.readLine()) != null) {
+//                                        line = line.replaceAll("\u001B\\[[;\\d]*m", "");
+//                                        if (matchType.equals(LogReplayInfo.MatchType.REGEX) ? pattern.matcher(line).find() : line.contains(matchString)) {
+//                                            content.add(p.getParent().toString() + " " + p.getFileName() + " " + line);
+//                                            if (content.size() >= matchSize) break;
+//                                        }
+//                                    }
+                                    String prefix = p.getParent() + " " + p.getFileName() + " ";
                                     String line;
-                                    while ((line = br.readLine()) != null) {
-                                        if (matchType.equals(LogReplayInfo.MatchType.REGEX) ? pattern.matcher(line).find() : line.contains(matchString)) {
-                                            content.add(p.getParent().toString() + " " + p.getFileName() + " " + line.replaceAll("\u001B\\[[;\\d]*m", ""));
-                                            if (content.size() >= matchSize) {
-                                                break;
+                                    while ((line = br.readLine()) != null && content.size() < matchSize) {
+                                        line = line.replaceAll("\u001B\\[[;\\d]*m", "");
+                                        if (matchType == LogReplayInfo.MatchType.REGEX ? pattern.matcher(line).find() : line.contains(matchString)) {
+                                            for (String prev : prevLines) {
+                                                if (content.size() >= matchSize) break;
+                                                content.add(prefix + prev);
                                             }
+                                            prevLines.clear();
+                                            if (content.size() < matchSize) {
+                                                content.add(prefix + line);
+                                            }
+                                            afterRemain.set(afterSize);
+                                            continue;
+                                        }
+                                        if (afterRemain.get() > 0) {
+                                            if (content.size() < matchSize) {
+                                                content.add(prefix + line);
+                                            }
+                                            afterRemain.getAndDecrement();
+                                            continue;
+                                        }
+                                        if (beforeSize > 0) {
+                                            if (prevLines.size() == beforeSize) {
+                                                prevLines.pollFirst();
+                                            }
+                                            prevLines.addLast(line);
                                         }
                                     }
                                 } catch (Exception e) {
