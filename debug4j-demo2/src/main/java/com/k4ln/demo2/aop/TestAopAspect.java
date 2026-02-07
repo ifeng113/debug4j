@@ -25,6 +25,7 @@ public class TestAopAspect {
     public Object auditAround(ProceedingJoinPoint pjp) {
         Object proceed;
         try {
+            Thread.sleep(52);
             proceed = pjp.proceed(pjp.getArgs());
             return proceed;
         } catch (Exception e) {

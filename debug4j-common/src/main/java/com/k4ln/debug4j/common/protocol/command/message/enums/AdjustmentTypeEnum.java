@@ -19,4 +19,7 @@ public enum AdjustmentTypeEnum {
     obj_info,               // 对象信息
     obj_field,              // 对象属性
     obj_method,             // 对象方法
+    obj_trace,              // 对象追踪
+    module_ssh,             // SSH组件
+    module_arthas,          // Arthas组件
 }

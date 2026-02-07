@@ -24,6 +24,7 @@ import com.k4ln.debug4j.core.attach.jvm.logger.LogReplayHandler;
 import com.k4ln.debug4j.core.attach.jvm.logger.LogReplayInfo;
 import com.k4ln.debug4j.core.attach.jvm.logger.LoggerInfo;
 import com.k4ln.debug4j.core.attach.jvm.logger.LoggerOperator;
+import com.k4ln.debug4j.core.attach.jvm.trace.Debug4jTraceInstaller;
 import com.sun.management.HotSpotDiagnosticMXBean;
 import jdk.jfr.Configuration;
 import jdk.jfr.Recording;
@@ -269,6 +270,12 @@ public class Debug4jProcessOperator {
                         .sorted(Comparator.comparing(LoggerInfo::getName))
                         .collect(Collectors.toMap(LoggerInfo::getName, LoggerInfo::toString, (a, b) -> a, LinkedHashMap::new));
                 return ProcessAdjustmentInfo.builder().adjustmentResult(adjustmentResult).build();
+            }
+            case log_replay -> {
+                LogReplayHandler.replay(adjustmentReqMessage.getAdjustmentContent());
+                return ProcessAdjustmentInfo.builder()
+                        .adjustmentExtendResult(LogReplayHandler.getReplayInfo())
+                        .build();
             }
             case property -> {
                 Map<String, String> adjustmentContent = adjustmentReqMessage.getAdjustmentContent();
@@ -520,7 +527,7 @@ public class Debug4jProcessOperator {
                                 .adjustmentExtendResult(jsonObject)
                                 .build();
                     } else {
-                        return adjustmentError("filePath does not exist or it is not a directory.");
+                        return adjustmentError("filePath does not exist or it is not a directory");
                     }
                 } else {
                     return adjustmentError("filePath or matchString is empty");
@@ -607,10 +614,12 @@ public class Debug4jProcessOperator {
                     return adjustmentError(e);
                 }
             }
-            case log_replay -> {
-                LogReplayHandler.replay(adjustmentReqMessage.getAdjustmentContent());
+            case obj_trace -> {
+                // fixme 判断是安装还是卸载
+//                Debug4jTraceInstaller.install(Debugger.getInstrumentation(), "com.k4ln.demo2.controller.DemoNoBeanDto", "");
+                Debug4jTraceInstaller.install(Debugger.getInstrumentation(), "com.k4ln.demo2.controller.Demo2Controller", "");
+//                Debug4jTraceInstaller.uninstall(Debugger.getInstrumentation(), "com.k4ln.demo2.controller.Demo2Controller");
                 return ProcessAdjustmentInfo.builder()
-                        .adjustmentExtendResult(LogReplayHandler.getReplayInfo())
                         .build();
             }
         }

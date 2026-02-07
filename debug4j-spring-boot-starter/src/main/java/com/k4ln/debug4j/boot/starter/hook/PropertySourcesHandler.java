@@ -111,8 +111,11 @@ public class PropertySourcesHandler {
             sources.addFirst(new MapPropertySource(SOURCE_NAME, SOURCE_DATA));
         }
         if (adjustmentProperties instanceof Map map) {
-            //noinspection unchecked
-            SOURCE_DATA.putAll(map);
+            SOURCE_DATA.clear();
+            if (!map.isEmpty()) {
+                //noinspection unchecked
+                SOURCE_DATA.putAll(map); // 会出现Refresh keys changed: []的情况，暂时不处理，如需解决需引入org.springframework.cloud相关类
+            }
             new Thread(() -> {
                 try {
                     ApplicationContext applicationContext = SpringUtil.getApplicationContext();

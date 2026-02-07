@@ -82,11 +82,22 @@ public class Demo2Controller {
     }
 
     @GetMapping("/p3")
-    public Result<String> demo3(@RequestParam(required = false) List<String> pps, @RequestParam(required = false) String p22) {
+    public Result<String> demo3(@RequestParam(required = false, name = "pps") List<String> pps, @RequestParam(required = false, name = "p22") String p22) {
         int a = 9;
         int b = 0;
         int c = a / b;
         return Result.ok("demo2_p2");
+    }
+
+    @GetMapping("/p4")
+    @TestAop
+    public Result<String> demo4() {
+        log.info("k1001---:{}", JSON.toJSONString(k100));
+
+        DemoNoBeanDto demoP4 = new DemoNoBeanDto("demo_p4");
+        demoP4.noBeanTest();
+
+        return Result.ok("demo_p4");
     }
 
     public void voidTest(Result<String>[] k101) {
