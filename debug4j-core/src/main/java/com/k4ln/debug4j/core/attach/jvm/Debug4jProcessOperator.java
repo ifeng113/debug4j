@@ -615,11 +615,29 @@ public class Debug4jProcessOperator {
                 }
             }
             case obj_trace -> {
-                // fixme 判断是安装还是卸载
-//                Debug4jTraceInstaller.install(Debugger.getInstrumentation(), "com.k4ln.demo2.controller.DemoNoBeanDto", "");
-                Debug4jTraceInstaller.install(Debugger.getInstrumentation(), "com.k4ln.demo2.controller.Demo2Controller", "");
-//                Debug4jTraceInstaller.uninstall(Debugger.getInstrumentation(), "com.k4ln.demo2.controller.Demo2Controller");
+                Map<String, String> adjustmentContent = adjustmentReqMessage.getAdjustmentContent();
+                boolean traceType = StrUtil.isNotBlank(adjustmentContent.get("traceType")) && "install".equals(adjustmentContent.get("traceType"));
+                if (StrUtil.isNotBlank(adjustmentContent.get("traceClassInfo"))) {
+                    JSONArray jsonArray = JSONArray.parseArray(adjustmentContent.get("traceClassInfo"));
+                    if (jsonArray != null && !jsonArray.isEmpty()) {
+                        for (int i = 0; i < jsonArray.size(); i++) {
+                            JSONObject jsonObject = jsonArray.getJSONObject(i);
+                            if (jsonObject != null && StrUtil.isNotBlank(jsonObject.getString("className"))) {
+                                if (traceType) {
+                                    Debug4jTraceInstaller.install(Debugger.getInstrumentation(), jsonObject.getString("className"), jsonObject.getString("methodName"));
+                                } else {
+                                    Debug4jTraceInstaller.uninstall(Debugger.getInstrumentation(), jsonObject.getString("className"));
+                                }
+                            }
+                        }
+                    }
+                }
+                JSONObject jsonObject = new JSONObject();
+                for (String className : Debug4jTraceInstaller.getTransformerMap().keySet()) {
+                    jsonObject.put(className, Debug4jTraceInstaller.getClassNameMethodMap().get(className) == null ? "" : Debug4jTraceInstaller.getClassNameMethodMap().get(className));
+                }
                 return ProcessAdjustmentInfo.builder()
+                        .adjustmentExtendResult(jsonObject)
                         .build();
             }
         }

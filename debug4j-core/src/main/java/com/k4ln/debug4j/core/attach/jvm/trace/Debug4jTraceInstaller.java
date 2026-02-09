@@ -1,6 +1,7 @@
 package com.k4ln.debug4j.core.attach.jvm.trace;
 
 import cn.hutool.core.util.StrUtil;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.agent.builder.ResettableClassFileTransformer;
@@ -10,6 +11,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
 
 import java.lang.instrument.Instrumentation;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -18,7 +20,11 @@ import static net.bytebuddy.matcher.ElementMatchers.*;
 @Slf4j
 public class Debug4jTraceInstaller {
 
+    @Getter
     private static final Map<String, ResettableClassFileTransformer> transformerMap = new LinkedHashMap<>();
+
+    @Getter
+    private static final Map<String, String> classNameMethodMap = new HashMap<>();
 
     /**
      * 安装追踪
@@ -44,12 +50,13 @@ public class Debug4jTraceInstaller {
                         .and(not(isEnum())))
                 .transform((builder, type, cl, module, pd) -> {
                             ElementMatcher.Junction<MethodDescription> junction = ElementMatchers.isMethod().and(ElementMatchers.not(ElementMatchers.isConstructor()));
-                            if (StrUtil.isNotBlank(methodName) && !"*".equals(methodName))
+                            if (StrUtil.isNotBlank(methodName))
                                 junction = junction.and(nameContains(methodName));
                             return builder.visit(Advice.to(Debug4jTraceLogAdvice.class).on(junction));  // 不能使用any，否则构造方法会报错
                         }
                 ).installOn(inst);
         transformerMap.put(className, transformer);
+        classNameMethodMap.put(className, methodName);
     }
 
     /**
@@ -62,7 +69,9 @@ public class Debug4jTraceInstaller {
         if (transformerMap.get(className) != null) {
             transformerMap.get(className).reset(inst, AgentBuilder.RedefinitionStrategy.RETRANSFORMATION);
             transformerMap.remove(className);
+            classNameMethodMap.remove(className);
         }
     }
+
 }
 
