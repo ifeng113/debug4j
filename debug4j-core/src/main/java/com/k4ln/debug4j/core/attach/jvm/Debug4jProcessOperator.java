@@ -20,6 +20,7 @@ import com.k4ln.debug4j.common.utils.SystemUtils;
 import com.k4ln.debug4j.core.Debugger;
 import com.k4ln.debug4j.core.attach.Debug4jAttachOperator;
 import com.k4ln.debug4j.core.attach.dto.*;
+import com.k4ln.debug4j.core.attach.jvm.install.JarResourceExtractor;
 import com.k4ln.debug4j.core.attach.jvm.logger.LogReplayHandler;
 import com.k4ln.debug4j.core.attach.jvm.logger.LogReplayInfo;
 import com.k4ln.debug4j.core.attach.jvm.logger.LoggerInfo;
@@ -29,6 +30,7 @@ import com.sun.management.HotSpotDiagnosticMXBean;
 import jdk.jfr.Configuration;
 import jdk.jfr.Recording;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.sshd.common.util.OsUtils;
 import org.apache.sshd.server.SshServer;
 import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider;
 import org.apache.sshd.sftp.server.SftpSubsystemFactory;
@@ -40,6 +42,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.math.RoundingMode;
+import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -71,6 +74,11 @@ public class Debug4jProcessOperator {
      * SFTP服务
      */
     private static SshServer sshd = null;
+
+    /**
+     * SSH安装进程
+     */
+    private static Process sshInstallProcess = null;
 
     /**
      * JFR
@@ -640,8 +648,41 @@ public class Debug4jProcessOperator {
                         .adjustmentExtendResult(jsonObject)
                         .build();
             }
+            case module_ssh -> {
+                if (OsUtils.isUNIX()) {
+                    if (!checkSSHServerInstalled()) {
+                        if (sshInstallProcess == null || !sshInstallProcess.isAlive()) {
+                            JarResourceExtractor.extractInstall(); // 如果脚本运行时失败请自行修改替换，如果运行目录中存在脚本文件，（解压）拷贝时会跳过，不会覆盖
+                            sshInstallProcess = JarResourceExtractor.runSSHInstall();
+                        }
+                        return ProcessAdjustmentInfo.builder()
+                                .adjustmentResult(Map.of("openssh-server", "install processing"))
+                                .build();
+                    } else {
+                        return ProcessAdjustmentInfo.builder()
+                                .adjustmentResult(Map.of("openssh-server", "running"))
+                                .build();
+                    }
+                } else {
+                    return adjustmentError("The current operating system does not support");
+                }
+            }
         }
         return ProcessAdjustmentInfo.builder().build();
+    }
+
+    /**
+     * 检查ssh服务是否已安装
+     *
+     * @return
+     */
+    private static boolean checkSSHServerInstalled() {
+        try (Socket socket = new Socket()) {
+            socket.connect(new java.net.InetSocketAddress("127.0.0.1", 22), 1000);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     /**

@@ -188,7 +188,7 @@ public class JavaSourceCompiler {
         if (null == options) {
             options = new ArrayList<>();
         }
-        if (false == classPath.isEmpty()) {
+        if (!classPath.isEmpty()) {
             final List<String> cp = CollUtil.map(classPath, File::getAbsolutePath, true);
             options.add("-cp");
             options.add(CollUtil.join(cp, FileUtil.isWindows() ? ";" : ":"));
