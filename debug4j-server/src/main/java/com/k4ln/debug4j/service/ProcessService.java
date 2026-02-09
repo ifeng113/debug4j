@@ -141,6 +141,37 @@ public class ProcessService {
                         }
                     }
                 }
+                case module_ssh -> {
+                    String processSessionId = socketServer.getProcessSessionId(adjustmentReqVO.getClientSessionId());
+                    if (StrUtil.isNotBlank(processSessionId)) {
+                        ProxyRespVO proxyRespVO = proxyService.proxy(ProxyReqVO.builder()
+                                .remark("debug4j ssh server")
+                                .clientSessionId(processSessionId)
+                                .remoteHost("127.0.0.1")
+                                .remotePort(22)
+                                .build());
+                        respVO.getAdjustmentResult().put("ssh_proxy", String.valueOf(proxyRespVO.getProxyPort()));
+                    }
+                }
+                case module_arthas -> {
+                    String processSessionId = socketServer.getProcessSessionId(adjustmentReqVO.getClientSessionId());
+                    if (StrUtil.isNotBlank(processSessionId)) {
+                        ProxyRespVO telnetProxy = proxyService.proxy(ProxyReqVO.builder()
+                                .remark("debug4j arthas telnet server")
+                                .clientSessionId(processSessionId)
+                                .remoteHost("127.0.0.1")
+                                .remotePort(3658)
+                                .build());
+                        respVO.getAdjustmentResult().put("arthas_telnet_proxy", String.valueOf(telnetProxy.getProxyPort()));
+                        ProxyRespVO webConsole = proxyService.proxy(ProxyReqVO.builder()
+                                .remark("debug4j arthas web-console server")
+                                .clientSessionId(processSessionId)
+                                .remoteHost("127.0.0.1")
+                                .remotePort(8563)
+                                .build());
+                        respVO.getAdjustmentResult().put("arthas_web_console_proxy", String.valueOf(webConsole.getProxyPort()));
+                    }
+                }
             }
         }
     }

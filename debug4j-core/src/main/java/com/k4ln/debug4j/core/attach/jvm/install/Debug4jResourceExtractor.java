@@ -16,7 +16,7 @@ import java.util.jar.JarFile;
 import java.util.stream.Stream;
 
 @Slf4j
-public class JarResourceExtractor {
+public class Debug4jResourceExtractor {
 
     public static final Path targetDir = Paths.get("/usr/local/bin/debug4j");
 
@@ -26,7 +26,7 @@ public class JarResourceExtractor {
     public static void extractInstall() {
         try {
             Files.createDirectories(targetDir);
-            URL url = JarResourceExtractor.class.getResource("/install");
+            URL url = Debug4jResourceExtractor.class.getResource("/install");
             if (url == null) {
                 throw new RuntimeException("classpath:/install not found");
             }
@@ -77,7 +77,7 @@ public class JarResourceExtractor {
         try (Stream<Path> paths = Files.walk(src)) {
             paths.forEach(in -> {
                 try {
-                    Path out = JarResourceExtractor.targetDir.resolve(src.relativize(in).toString());
+                    Path out = Debug4jResourceExtractor.targetDir.resolve(src.relativize(in).toString());
                     if (Files.isDirectory(in)) {
                         Files.createDirectories(out);
                     } else {
@@ -100,7 +100,7 @@ public class JarResourceExtractor {
      * 设置可执行权限
      */
     private static void makeExecutable() {
-        try (Stream<Path> paths = Files.walk(JarResourceExtractor.targetDir)) {
+        try (Stream<Path> paths = Files.walk(Debug4jResourceExtractor.targetDir)) {
             paths.filter(p -> p.toString().endsWith(".sh"))
                     .forEach(p -> {
                         try {
@@ -115,9 +115,16 @@ public class JarResourceExtractor {
     }
 
     /**
-     * 执行安装脚本
+     * 执行SSH安装脚本
      */
     public static Process runSSHInstall() {
         return SystemUtils.exec("sh", targetDir.resolve("install-ssh.sh").toString());
+    }
+
+    /**
+     * 执行Arthas安装脚本
+     */
+    public static Process runArthasInstall() {
+        return SystemUtils.exec("sh", targetDir.resolve("install-arthas.sh").toString(), String.valueOf(ProcessHandle.current().pid()));
     }
 }

@@ -20,7 +20,7 @@ import com.k4ln.debug4j.common.utils.SystemUtils;
 import com.k4ln.debug4j.core.Debugger;
 import com.k4ln.debug4j.core.attach.Debug4jAttachOperator;
 import com.k4ln.debug4j.core.attach.dto.*;
-import com.k4ln.debug4j.core.attach.jvm.install.JarResourceExtractor;
+import com.k4ln.debug4j.core.attach.jvm.install.Debug4jResourceExtractor;
 import com.k4ln.debug4j.core.attach.jvm.logger.LogReplayHandler;
 import com.k4ln.debug4j.core.attach.jvm.logger.LogReplayInfo;
 import com.k4ln.debug4j.core.attach.jvm.logger.LoggerInfo;
@@ -79,6 +79,11 @@ public class Debug4jProcessOperator {
      * SSH安装进程
      */
     private static Process sshInstallProcess = null;
+
+    /**
+     * Arthas安装进程
+     */
+    private static Process arthasInstallProcess = null;
 
     /**
      * JFR
@@ -652,8 +657,8 @@ public class Debug4jProcessOperator {
                 if (OsUtils.isUNIX()) {
                     if (!checkSSHServerInstalled()) {
                         if (sshInstallProcess == null || !sshInstallProcess.isAlive()) {
-                            JarResourceExtractor.extractInstall(); // 如果脚本运行时失败请自行修改替换，如果运行目录中存在脚本文件，（解压）拷贝时会跳过，不会覆盖
-                            sshInstallProcess = JarResourceExtractor.runSSHInstall();
+                            Debug4jResourceExtractor.extractInstall(); // 如果脚本运行时失败请自行修改替换，如果运行目录中存在脚本文件，（解压）拷贝时会跳过，不会覆盖
+                            sshInstallProcess = Debug4jResourceExtractor.runSSHInstall();
                         }
                         return ProcessAdjustmentInfo.builder()
                                 .adjustmentResult(Map.of("openssh-server", "install processing"))
@@ -663,6 +668,19 @@ public class Debug4jProcessOperator {
                                 .adjustmentResult(Map.of("openssh-server", "running"))
                                 .build();
                     }
+                } else {
+                    return adjustmentError("The current operating system does not support");
+                }
+            }
+            case module_arthas -> {
+                if (OsUtils.isUNIX()) {
+                    if (arthasInstallProcess == null || !arthasInstallProcess.isAlive()) {
+                        Debug4jResourceExtractor.extractInstall(); // 如果脚本运行时失败请自行修改替换，如果运行目录中存在脚本文件，（解压）拷贝时会跳过，不会覆盖
+                        arthasInstallProcess = Debug4jResourceExtractor.runArthasInstall();
+                    }
+                    return ProcessAdjustmentInfo.builder()
+                            .adjustmentResult(Map.of("arthas", "install completed"))
+                            .build();
                 } else {
                     return adjustmentError("The current operating system does not support");
                 }
