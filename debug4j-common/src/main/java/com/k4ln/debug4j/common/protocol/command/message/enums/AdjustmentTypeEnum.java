@@ -22,4 +22,5 @@ public enum AdjustmentTypeEnum {
     obj_trace,              // 对象追踪
     module_ssh,             // SSH组件
     module_arthas,          // Arthas组件
+    module_proxy,           // Proxy组件
 }

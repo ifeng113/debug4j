@@ -143,7 +143,7 @@ public class ProcessService {
                 }
                 case module_ssh -> {
                     String processSessionId = socketServer.getProcessSessionId(adjustmentReqVO.getClientSessionId());
-                    if (StrUtil.isNotBlank(processSessionId)) {
+                    if (StrUtil.isNotBlank(processSessionId) && StrUtil.isBlank(respVO.getAdjustmentResult().get("//errMsg"))) {
                         ProxyRespVO proxyRespVO = proxyService.proxy(ProxyReqVO.builder()
                                 .remark("debug4j ssh server")
                                 .clientSessionId(processSessionId)
@@ -155,7 +155,7 @@ public class ProcessService {
                 }
                 case module_arthas -> {
                     String processSessionId = socketServer.getProcessSessionId(adjustmentReqVO.getClientSessionId());
-                    if (StrUtil.isNotBlank(processSessionId)) {
+                    if (StrUtil.isNotBlank(processSessionId) && StrUtil.isBlank(respVO.getAdjustmentResult().get("//errMsg"))) {
                         ProxyRespVO telnetProxy = proxyService.proxy(ProxyReqVO.builder()
                                 .remark("debug4j arthas telnet server")
                                 .clientSessionId(processSessionId)
@@ -170,6 +170,31 @@ public class ProcessService {
                                 .remotePort(8563)
                                 .build());
                         respVO.getAdjustmentResult().put("arthas_web_console_proxy", String.valueOf(webConsole.getProxyPort()));
+                    }
+                }
+                case module_proxy -> {
+                    String processSessionId = socketServer.getProcessSessionId(adjustmentReqVO.getClientSessionId());
+                    if (StrUtil.isNotBlank(processSessionId)) {
+                        Map<String, String> adjustmentContent = adjustmentReqVO.getAdjustmentContent();
+                        boolean status = StrUtil.isNotBlank(adjustmentContent.get("status")) && "enable".equals(adjustmentContent.get("status"));
+                        if (status) {
+                            ProxyRespVO telnetProxy = proxyService.proxy(ProxyReqVO.builder()
+                                    .remark("debug4j http proxy server")
+                                    .clientSessionId(processSessionId)
+                                    .remoteHost("127.0.0.1")
+                                    .remotePort(7980)
+                                    .build());
+                            respVO.getAdjustmentResult().put("http(s)_proxy", String.valueOf(telnetProxy.getProxyPort()));
+                        } else {
+                            try {
+                                proxyService.proxyRemove(ProxyRemoveReqVO.builder()
+                                        .clientSessionId(processSessionId)
+                                        .remoteHost("127.0.0.1")
+                                        .remotePort(7980)
+                                        .build());
+                            } catch (Exception ignored) {
+                            }
+                        }
                     }
                 }
             }

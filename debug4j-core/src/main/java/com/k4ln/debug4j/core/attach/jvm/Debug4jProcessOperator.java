@@ -25,6 +25,7 @@ import com.k4ln.debug4j.core.attach.jvm.logger.LogReplayHandler;
 import com.k4ln.debug4j.core.attach.jvm.logger.LogReplayInfo;
 import com.k4ln.debug4j.core.attach.jvm.logger.LoggerInfo;
 import com.k4ln.debug4j.core.attach.jvm.logger.LoggerOperator;
+import com.k4ln.debug4j.core.attach.jvm.proxy.Debug4jHttpProxy;
 import com.k4ln.debug4j.core.attach.jvm.trace.Debug4jTraceInstaller;
 import com.sun.management.HotSpotDiagnosticMXBean;
 import jdk.jfr.Configuration;
@@ -684,6 +685,18 @@ public class Debug4jProcessOperator {
                 } else {
                     return adjustmentError("The current operating system does not support");
                 }
+            }
+            case module_proxy -> {
+                Map<String, String> adjustmentContent = adjustmentReqMessage.getAdjustmentContent();
+                boolean status = StrUtil.isNotBlank(adjustmentContent.get("status")) && "enable".equals(adjustmentContent.get("status"));
+                if (status) {
+                    Debug4jHttpProxy.start();
+                } else {
+                    Debug4jHttpProxy.stop();
+                }
+                return ProcessAdjustmentInfo.builder()
+                        .adjustmentResult(Map.of("http(s) proxy", status ? "enable" : "disable"))
+                        .build();
             }
         }
         return ProcessAdjustmentInfo.builder().build();
