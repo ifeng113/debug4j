@@ -72,7 +72,7 @@ public class Debug4jAttachOperator {
     private static final Map<String, List<ObjMethodInfo>> classMethodInfoMap = new ConcurrentHashMap<>();
 
     /**
-     * 获取所有class名称
+     * 获取所有class名称（部分类为懒加载，Instrumentation可能还无法获取，需前端直接传入全类名获取）
      *
      * @param instrumentation
      * @param configPackageName
