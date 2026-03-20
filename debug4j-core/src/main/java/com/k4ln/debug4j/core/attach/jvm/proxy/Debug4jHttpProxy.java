@@ -76,6 +76,13 @@ public class Debug4jHttpProxy {
     }
 
     /**
+     * 代理服务是否存活
+     */
+    public static boolean isAlive() {
+        return proxyServerThread.isAlive();
+    }
+
+    /**
      * 处理请求
      *
      * @param client

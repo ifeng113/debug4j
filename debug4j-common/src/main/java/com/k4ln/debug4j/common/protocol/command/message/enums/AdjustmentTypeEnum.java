@@ -23,4 +23,5 @@ public enum AdjustmentTypeEnum {
     module_ssh,             // SSH组件
     module_arthas,          // Arthas组件
     module_proxy,           // Proxy组件
+    module_status,          // 组件状态（含sftp）
 }

@@ -224,6 +224,7 @@ public class Debug4jProcessOperator {
             log.info("originalJvmArgs: {}", JSON.toJSONString(originalJvmArgs));
             List<String> newJvmArgs = new ArrayList<>(originalJvmArgs.stream()
                     .filter(e -> !processReqMessage.getRemoveJvmArgs().contains(e))
+                    .filter(e -> !e.startsWith("-Dcom.sun.management.jmxremote"))   // 屏蔽jmx冲突
                     .filter(e -> !e.startsWith("-agentlib:jdwp")).toList());
             Optional<String> any = originalJvmArgs.stream()
                     .filter(e -> !processReqMessage.getRemoveJvmArgs().contains(e))
@@ -656,7 +657,7 @@ public class Debug4jProcessOperator {
             }
             case module_ssh -> {
                 if (OsUtils.isUNIX()) {
-                    if (!checkSSHServerInstalled()) {
+                    if (!checkModuleInstalled(22)) {
                         if (sshInstallProcess == null || !sshInstallProcess.isAlive()) {
                             Debug4jResourceExtractor.extractInstall(); // 如果脚本运行时失败请自行修改替换，如果运行目录中存在脚本文件，（解压）拷贝时会跳过，不会覆盖
                             sshInstallProcess = Debug4jResourceExtractor.runSSHInstall();
@@ -675,13 +676,19 @@ public class Debug4jProcessOperator {
             }
             case module_arthas -> {
                 if (OsUtils.isUNIX()) {
-                    if (arthasInstallProcess == null || !arthasInstallProcess.isAlive()) {
-                        Debug4jResourceExtractor.extractInstall(); // 如果脚本运行时失败请自行修改替换，如果运行目录中存在脚本文件，（解压）拷贝时会跳过，不会覆盖
-                        arthasInstallProcess = Debug4jResourceExtractor.runArthasInstall();
+                    if (!checkModuleInstalled(8563)) {
+                        if (arthasInstallProcess == null || !arthasInstallProcess.isAlive()) {
+                            Debug4jResourceExtractor.extractInstall(); // 如果脚本运行时失败请自行修改替换，如果运行目录中存在脚本文件，（解压）拷贝时会跳过，不会覆盖
+                            arthasInstallProcess = Debug4jResourceExtractor.runArthasInstall();
+                        }
+                        return ProcessAdjustmentInfo.builder()
+                                .adjustmentResult(Map.of("arthas", "install processing"))
+                                .build();
+                    } else {
+                        return ProcessAdjustmentInfo.builder()
+                                .adjustmentResult(Map.of("arthas", "running"))
+                                .build();
                     }
-                    return ProcessAdjustmentInfo.builder()
-                            .adjustmentResult(Map.of("arthas", "install completed"))
-                            .build();
                 } else {
                     return adjustmentError("The current operating system does not support");
                 }
@@ -698,18 +705,28 @@ public class Debug4jProcessOperator {
                         .adjustmentResult(Map.of("http(s) proxy", status ? "enable" : "disable"))
                         .build();
             }
+            case module_status -> {
+                Map<String, String> moduleStatus = new LinkedHashMap<>();
+                moduleStatus.put("arthas", checkModuleInstalled(8563) ? arthasInstallProcess != null && arthasInstallProcess.isAlive() ? "-" : "8563/3568" : "");
+                moduleStatus.put("ssh", checkModuleInstalled(22) ? sshInstallProcess != null && sshInstallProcess.isAlive() ? "-" : "22" : "");
+                moduleStatus.put("proxy", Debug4jHttpProxy.isAlive() ? "7980" : "");
+                moduleStatus.put("sftp", (sshd != null && !sshd.isClosed() && sshd.isStarted()) ? sshd.getPort() + "" : "");
+                return ProcessAdjustmentInfo.builder()
+                        .adjustmentResult(moduleStatus)
+                        .build();
+            }
         }
         return ProcessAdjustmentInfo.builder().build();
     }
 
     /**
-     * 检查ssh服务是否已安装
+     * 检查组件服务是否已安装
      *
      * @return
      */
-    private static boolean checkSSHServerInstalled() {
+    private static boolean checkModuleInstalled(int port) {
         try (Socket socket = new Socket()) {
-            socket.connect(new java.net.InetSocketAddress("127.0.0.1", 22), 1000);
+            socket.connect(new java.net.InetSocketAddress("127.0.0.1", port), 1000);
             return true;
         } catch (Exception e) {
             return false;

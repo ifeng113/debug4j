@@ -44,6 +44,7 @@ public class ProxyService {
      * @return
      */
     public List<ProxyDetailsRespVO> getProxyServer(String clientSessionId) {
+        clientSessionId = clientSessionCheck(clientSessionId);
         List<ProxyDetailsRespVO> proxyDetailsRespVOS = new ArrayList<>();
         for (Map.Entry<String, SocketTFProxyServer> entry : proxyServers.entrySet()) {
             if (entry.getKey().startsWith(clientSessionId)) {
@@ -101,14 +102,39 @@ public class ProxyService {
                 Optional<CommandInfoMessage> any = socketServer.getInfoMessageMap().values().stream()
                         .filter(e -> e.getDebug4jMode().equals(Debug4jMode.process)).findFirst();
                 any.ifPresent(commandInfoMessage -> proxyReqVO.setClientSessionId(commandInfoMessage.getClientSessionId()));
+                return;
             }
             throw new BusinessAbort("not found remote client");
         } else {
             CommandInfoMessage commandInfoMessage = socketServer.getInfoMessageMap().get(proxyReqVO.getClientSessionId());
             if (commandInfoMessage == null || commandInfoMessage.getDebug4jMode().equals(Debug4jMode.thread)) {
-                throw new BusinessAbort("not found [proxy] client");
+                throw new BusinessAbort("not found [process] client");
             }
         }
+    }
+
+    /**
+     * 客户端sessionId检查
+     *
+     * @param clientSessionId
+     */
+    private String clientSessionCheck(String clientSessionId) {
+        if (StrUtil.isBlank(clientSessionId) || !socketServer.getSessionMap().containsKey(clientSessionId)) {
+            if (serverProperties.getDeveloper()) {
+                Optional<CommandInfoMessage> any = socketServer.getInfoMessageMap().values().stream()
+                        .filter(e -> e.getDebug4jMode().equals(Debug4jMode.process)).findFirst();
+                if (any.isPresent()) {
+                    return any.get().getClientSessionId();
+                }
+            }
+            throw new BusinessAbort("not found remote client");
+        } else {
+            CommandInfoMessage commandInfoMessage = socketServer.getInfoMessageMap().get(clientSessionId);
+            if (commandInfoMessage == null || commandInfoMessage.getDebug4jMode().equals(Debug4jMode.thread)) {
+                throw new BusinessAbort("not found [process] client");
+            }
+        }
+        return clientSessionId;
     }
 
     /**
