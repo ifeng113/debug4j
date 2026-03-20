@@ -707,8 +707,8 @@ public class Debug4jProcessOperator {
             }
             case module_status -> {
                 Map<String, String> moduleStatus = new LinkedHashMap<>();
-                moduleStatus.put("arthas", checkModuleInstalled(8563) ? arthasInstallProcess != null && arthasInstallProcess.isAlive() ? "-" : "8563/3568" : "");
-                moduleStatus.put("ssh", checkModuleInstalled(22) ? sshInstallProcess != null && sshInstallProcess.isAlive() ? "-" : "22" : "");
+                moduleStatus.put("arthas", checkModuleInstalled(8563) ? "8563/3568" : arthasInstallProcess != null && arthasInstallProcess.isAlive() ? "-" :  "");
+                moduleStatus.put("ssh", checkModuleInstalled(22) ? "22" : sshInstallProcess != null && sshInstallProcess.isAlive() ? "-" : "");
                 moduleStatus.put("proxy", Debug4jHttpProxy.isAlive() ? "7980" : "");
                 moduleStatus.put("sftp", (sshd != null && !sshd.isClosed() && sshd.isStarted()) ? sshd.getPort() + "" : "");
                 return ProcessAdjustmentInfo.builder()
