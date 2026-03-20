@@ -210,8 +210,8 @@ public class Debug4jClassFileTransformer implements ClassFileTransformer {
             cc = pool.get(transformerClassName);
             List<String> fieldList = new java.util.ArrayList<>(Arrays.stream(cc.getDeclaredFields()).map(e -> e.getName() + e.getSignature()).toList());
             fieldList.sort(Comparator.naturalOrder());
-            List<String> methodList = new java.util.ArrayList<>(Arrays.stream(cc.getDeclaredMethods()).map(e -> e.getName() + e.getSignature() +
-                    MD5.create().digestHex(Base64Encoder.encode(e.getMethodInfo().getCodeAttribute().getCode()))).toList());
+            List<String> methodList = new java.util.ArrayList<>(Arrays.stream(cc.getDeclaredMethods())
+                    .map(e -> e.getName() + e.getSignature() + MD5.create().digestHex(Base64Encoder.encode(e.getMethodInfo().getCodeAttribute() == null ? "".getBytes() : e.getMethodInfo().getCodeAttribute().getCode()))).toList());
             methodList.sort(Comparator.naturalOrder());
             return cc.getName() + "@" + cc.getGenericSignature() + "@" + JSON.toJSONString(fieldList) + "@" + JSON.toJSONString(methodList);
         } catch (Exception e) {
