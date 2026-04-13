@@ -2,6 +2,19 @@ package com.k4ln.debug4j.core.attach;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
+import com.github.javaparser.JavaParser;
+import com.github.javaparser.ParseResult;
+import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.NodeList;
+import com.github.javaparser.ast.body.VariableDeclarator;
+import com.github.javaparser.ast.expr.ArrayCreationExpr;
+import com.github.javaparser.ast.expr.ArrayInitializerExpr;
+import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.type.ArrayType;
+import com.github.javaparser.ast.type.ClassOrInterfaceType;
+import com.github.javaparser.ast.type.Type;
+import com.github.javaparser.ast.visitor.ModifierVisitor;
+import com.github.javaparser.ast.visitor.Visitable;
 import com.k4ln.debug4j.common.protocol.command.CommandTypeEnum;
 import com.k4ln.debug4j.common.protocol.command.message.enums.ByteCodeTypeEnum;
 import com.k4ln.debug4j.common.protocol.command.message.enums.SourceCodeTypeEnum;
@@ -46,6 +59,12 @@ import java.util.stream.Collectors;
 
 @Slf4j
 public class Debug4jAttachOperator {
+
+    /**
+     * source fallback：<a href="https://chatgpt.com/c/69bfc2da-b104-839a-9dc4-33fc5513c125">...</a>
+     * public static Result<String>[] k100 = {Result.ok("k100")}; => public static Result[] k100 = new Result[]{Result.ok("k100")};
+     */
+    private static final Pattern SOURCE_FALLBACK = Pattern.compile("(?s)(?s)([A-Za-z0-9_$.]+)\\s*<([^<>\\n]*(?:<[^<>]*>[^<>]*)*)>\\s*((?:\\[]\\s*)+)([A-Za-z_$][A-Za-z0-9_$]*)\\s*=\\s*(?!new\\s)\\{((?:[^{}]|\\{[^{}]*})*)}");
 
     /**
      * className -> ByteCodeInfo
@@ -333,6 +352,7 @@ public class Debug4jAttachOperator {
         jadxArgs.setInputFiles(inputFiles);
         jadxArgs.setDebugInfo(false);
         jadxArgs.setCodeNewLineStr("\n");
+        jadxArgs.setRespectBytecodeAccModifiers(false); // 防止变量乱序导致源码编译失败
         JadxDecompiler jadx = new JadxDecompiler(jadxArgs);
         jadx.load();
         String sourceCode = null;
@@ -340,7 +360,61 @@ public class Debug4jAttachOperator {
             sourceCode = cls.getCode();
         }
         jadx.close();
-        return sourceCode;
+        return StrUtil.isBlank(sourceCode) ? null : sourceFix(sourceCode);
+    }
+
+    /**
+     * 源代码（泛型属性）修复
+     *
+     * @param code
+     * @return
+     */
+    public static String sourceFix(String code) {
+        try {
+            JavaParser parser = new JavaParser();
+            ParseResult<CompilationUnit> result = parser.parse(code);
+            if (!result.isSuccessful() || result.getResult().isEmpty()) {
+                return code;
+            }
+            CompilationUnit cu = result.getResult().get();
+            cu.accept(new ModifierVisitor<Void>() {
+                @Override
+                public Visitable visit(VariableDeclarator vd, Void arg) {
+                    super.visit(vd, arg);
+                    if (!(vd.getType() instanceof ArrayType)) {
+                        return vd;
+                    }
+                    Type elementType = vd.getType();
+                    while (elementType instanceof ArrayType) {
+                        elementType = ((ArrayType) elementType).getComponentType();
+                    }
+                    if (!(elementType instanceof ClassOrInterfaceType classType)) {
+                        return vd;
+                    }
+                    if (classType.getTypeArguments().isEmpty()) {
+                        return vd;
+                    }
+                    if (vd.getInitializer().isEmpty()) {
+                        return vd;
+                    }
+                    Expression init = vd.getInitializer().get();
+                    if (!(init instanceof ArrayInitializerExpr arrayInit)) {
+                        return vd;
+                    }
+                    ClassOrInterfaceType rawType = classType.clone();
+                    rawType.setTypeArguments((NodeList<Type>) null);
+                    ArrayCreationExpr newArray = new ArrayCreationExpr();
+                    newArray.setElementType(rawType);
+                    newArray.setInitializer(arrayInit);
+                    vd.setInitializer(newArray);
+                    return vd;
+                }
+            }, null);
+            return cu.toString();
+        } catch (Exception e) {
+            log.warn("source fix failed:{}", e.getClass() + ":" + e.getMessage());
+            return code;
+        }
     }
 
     /**
