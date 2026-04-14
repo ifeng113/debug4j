@@ -61,12 +61,6 @@ import java.util.stream.Collectors;
 public class Debug4jAttachOperator {
 
     /**
-     * source fallback：<a href="https://chatgpt.com/c/69bfc2da-b104-839a-9dc4-33fc5513c125">...</a>
-     * public static Result<String>[] k100 = {Result.ok("k100")}; => public static Result[] k100 = new Result[]{Result.ok("k100")};
-     */
-    private static final Pattern SOURCE_FALLBACK = Pattern.compile("(?s)(?s)([A-Za-z0-9_$.]+)\\s*<([^<>\\n]*(?:<[^<>]*>[^<>]*)*)>\\s*((?:\\[]\\s*)+)([A-Za-z_$][A-Za-z0-9_$]*)\\s*=\\s*(?!new\\s)\\{((?:[^{}]|\\{[^{}]*})*)}");
-
-    /**
      * className -> ByteCodeInfo
      */
     @Getter
@@ -365,6 +359,7 @@ public class Debug4jAttachOperator {
 
     /**
      * 源代码（泛型属性）修复
+     * 防止此类属性变量编译失败: Result<String>[] k100 = new Result[]{Result.ok("k100")};
      *
      * @param code
      * @return
