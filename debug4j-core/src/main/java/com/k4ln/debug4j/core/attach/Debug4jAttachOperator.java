@@ -344,7 +344,7 @@ public class Debug4jAttachOperator {
     private synchronized static String jadxDecompile(List<File> inputFiles) {
         JadxArgs jadxArgs = new JadxArgs();
         jadxArgs.setInputFiles(inputFiles);
-        jadxArgs.setDebugInfo(false);
+        jadxArgs.setDebugInfo(true);
         jadxArgs.setCodeNewLineStr("\n");
         jadxArgs.setRespectBytecodeAccModifiers(false); // 防止变量乱序导致源码编译失败
         JadxDecompiler jadx = new JadxDecompiler(jadxArgs);
@@ -441,6 +441,9 @@ public class Debug4jAttachOperator {
                         CtMethod[] declaredMethods = cc.getDeclaredMethods();
                         Map<String, Integer> counter = new HashMap<>();
                         for (CtMethod declaredMethod : declaredMethods) {
+                            if (declaredMethod.getName().contains("$")) {
+                                continue;
+                            }
                             int count = counter.merge(declaredMethod.getName(), 1, Integer::sum);
                             if (count == 1) {
                                 classMethods.add(simpleName + "@" + declaredMethod.getName());
