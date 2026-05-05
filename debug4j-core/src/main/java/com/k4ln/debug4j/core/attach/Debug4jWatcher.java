@@ -14,6 +14,7 @@ import com.k4ln.debug4j.core.attach.dto.TaskInfo;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -70,7 +71,8 @@ public class Debug4jWatcher {
      */
     public synchronized static List<CommandTaskReqMessage> openTask(CommandTaskReqMessage reqMessage) {
         initWatcher();
-        File file = FileUtil.file(reqMessage.getFilePath());
+        Path path = Path.of(reqMessage.getFilePath());
+        File file = FileUtil.file(path.toFile());
         if (file.exists() && !file.isDirectory()) {
             TaskInfo watchTask = watcher.get(reqMessage.getFilePath());
             if (watchTask == null) {
