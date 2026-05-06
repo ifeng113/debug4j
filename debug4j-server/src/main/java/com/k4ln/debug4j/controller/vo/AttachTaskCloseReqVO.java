@@ -23,4 +23,9 @@ public class AttachTaskCloseReqVO {
      */
     private String filePath;
 
+    /**
+     * 客户端ID
+     */
+    private String loginId;
+
 }

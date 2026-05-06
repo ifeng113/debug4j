@@ -74,7 +74,7 @@ public class Debug4jWatcher {
         Path path = Path.of(reqMessage.getFilePath());
         File file = FileUtil.file(path.toFile());
         if (file.exists() && !file.isDirectory()) {
-            TaskInfo watchTask = watcher.get(reqMessage.getFilePath());
+            TaskInfo watchTask = watcher.get(watcherKey(reqMessage));
             if (watchTask == null) {
                 Tailer tailer = new Tailer(file, line -> {
                     if (StrUtil.isNotBlank(line)) {
@@ -89,7 +89,7 @@ public class Debug4jWatcher {
                         .lastListenTime(System.currentTimeMillis())
                         .tailer(tailer)
                         .build();
-                watcher.put(reqMessage.getFilePath(), taskInfo);
+                watcher.put(watcherKey(reqMessage), taskInfo);
                 tailer.start(true);
             } else {
                 watchTask.setLastListenTime(System.currentTimeMillis());
@@ -106,11 +106,15 @@ public class Debug4jWatcher {
      */
     public synchronized static List<CommandTaskReqMessage> closeTask(CommandTaskReqMessage reqMessage) {
         initWatcher();
-        TaskInfo taskInfo = watcher.get(reqMessage.getFilePath(), false);
+        TaskInfo taskInfo = watcher.get(watcherKey(reqMessage), false);
         if (taskInfo != null) {
             taskInfo.getTailer().stop();
-            watcher.remove(reqMessage.getFilePath());
+            watcher.remove(watcherKey(reqMessage));
         }
         return getTask();
+    }
+
+    private static String watcherKey(CommandTaskReqMessage reqMessage) {
+        return reqMessage.getFilePath() + "_" + reqMessage.getLoginId();
     }
 }

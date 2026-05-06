@@ -24,8 +24,13 @@ public class AttachTaskOpenReqVO {
     private String filePath;
 
     /**
+     * 客户端ID
+     */
+    private String loginId;
+
+    /**
      * 预读行数
      */
     @Builder.Default
-    private Integer initReadLine = 10;
+    private Integer initReadLine = 100;
 }

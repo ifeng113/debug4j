@@ -7,6 +7,7 @@ import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Path;
 import java.util.*;
@@ -54,7 +55,7 @@ public class LogReplayHandler {
                             List<String> matchLines = new ArrayList<>(100);
                             try {
                                 if (replayWriter.getKey().getMatchType().equals(LogReplayInfo.MatchType.ALL)) {
-                                    replayWriter.getValue().writeLines(lines);
+                                    writeLines(replayWriter, lines);
                                 } else if (replayWriter.getKey().getMatchType().equals(LogReplayInfo.MatchType.CONTAIN)) {
                                     for (String line : lines) {
                                         if (line.contains(replayWriter.getKey().getMatchString())) {
@@ -70,7 +71,7 @@ public class LogReplayHandler {
                                     }
                                 }
                                 if (!matchLines.isEmpty()) {
-                                    replayWriter.getValue().writeLines(matchLines);
+                                    writeLines(replayWriter, matchLines);
                                 }
                             } catch (Exception e) {
                                 e.printStackTrace();
@@ -82,6 +83,14 @@ public class LogReplayHandler {
                 }
             }
         });
+    }
+
+    private static void writeLines(Map.Entry<LogReplayInfo, LogReplayFileWriter> replayWriter, List<String> lines) {
+        try {
+            replayWriter.getValue().writeLines(lines);
+        } catch (IOException e) {
+            log.error("logReplayFileWriter writeLines error:{}", e.getClass() + ":" + e.getMessage());
+        }
     }
 
     /**

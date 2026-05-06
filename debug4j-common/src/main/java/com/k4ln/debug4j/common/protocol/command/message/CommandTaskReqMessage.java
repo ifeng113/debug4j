@@ -25,6 +25,11 @@ public class CommandTaskReqMessage {
     private String filePath;
 
     /**
+     * 客户端ID
+     */
+    private String loginId;
+
+    /**
      * 预读行数
      */
     private Integer initReadLine;
@@ -44,24 +49,26 @@ public class CommandTaskReqMessage {
         ).getBytes();
     }
 
-    public static byte[] buildTaskOpenMessage(String reqId, String filePath, Integer initReadLine) {
+    public static byte[] buildTaskOpenMessage(String reqId, String filePath, String loginId, Integer initReadLine) {
         return (JSON.toJSONString(Command.builder()
                 .command(CommandTypeEnum.ATTACH_REQ_TASK_OPEN)
                 .data(CommandTaskReqMessage.builder()
                         .reqId(reqId)
                         .filePath(filePath)
+                        .loginId(loginId)
                         .initReadLine(initReadLine)
                         .build())
                 .build())
         ).getBytes();
     }
 
-    public static byte[] buildTaskCloseMessage(String reqId, String filePath) {
+    public static byte[] buildTaskCloseMessage(String reqId, String filePath, String loginId) {
         return (JSON.toJSONString(Command.builder()
                 .command(CommandTypeEnum.ATTACH_REQ_TASK_CLOSE)
                 .data(CommandTaskReqMessage.builder()
                         .reqId(reqId)
                         .filePath(filePath)
+                        .loginId(loginId)
                         .build())
                 .build())
         ).getBytes();

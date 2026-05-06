@@ -22,6 +22,11 @@ public class AttachTaskRespVO {
     private String filePath;
 
     /**
+     * 客户端ID
+     */
+    private String loginId;
+
+    /**
      * 预读行数
      */
     private Integer initReadLine;

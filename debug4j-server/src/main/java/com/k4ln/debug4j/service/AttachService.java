@@ -114,7 +114,7 @@ public class AttachService {
         String reqId = UUID.fastUUID().toString(true);
         CommandTaskRespMessage attachResp = attachHub.syncResult(reqId, () ->
                         socketServer.sendMessage(openReqVO.getClientSessionId(), HashUtil.fnvHash(reqId), ProtocolTypeEnum.COMMAND,
-                                CommandTaskReqMessage.buildTaskOpenMessage(reqId, openReqVO.getFilePath(), openReqVO.getInitReadLine())),
+                                CommandTaskReqMessage.buildTaskOpenMessage(reqId, openReqVO.getFilePath(), openReqVO.getLoginId(), openReqVO.getInitReadLine())),
                 CommandTaskRespMessage.class);
         if (attachResp != null) {
             return BeanUtil.copyToList(attachResp.getCommandTaskReqMessages(), AttachTaskRespVO.class);
@@ -133,7 +133,7 @@ public class AttachService {
         String reqId = UUID.fastUUID().toString(true);
         CommandTaskRespMessage attachResp = attachHub.syncResult(reqId, () ->
                         socketServer.sendMessage(closeReqVO.getClientSessionId(), HashUtil.fnvHash(reqId), ProtocolTypeEnum.COMMAND,
-                                CommandTaskReqMessage.buildTaskCloseMessage(reqId, closeReqVO.getFilePath())),
+                                CommandTaskReqMessage.buildTaskCloseMessage(reqId, closeReqVO.getFilePath(), closeReqVO.getLoginId())),
                 CommandTaskRespMessage.class);
         if (attachResp != null) {
             attachHub.removeSseEmitter(AttachHub.getSseEmitterKey(closeReqVO.getClientSessionId(), closeReqVO.getFilePath()), null);
