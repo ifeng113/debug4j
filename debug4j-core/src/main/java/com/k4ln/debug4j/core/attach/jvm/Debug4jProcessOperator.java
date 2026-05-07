@@ -169,9 +169,9 @@ public class Debug4jProcessOperator {
                 System.setProperty(e.split("=")[0], e.split("=")[1]);
             }
         });
-        processArgsInfo.getProgramArgs().removeAll(processReq.getRemoveProgramArgs());
-        processArgsInfo.getProgramArgs().addAll(processReq.getAddProgramArgs());
-        Debugger.getDebug4jCommand().getReloadStartHandler().accept(processArgsInfo.getProgramArgs());
+        processArgsInfo.getProgramArgs().removeAll(processReq.getRemoveProgramArgs().stream().filter(e -> !e.startsWith("--debug4j-root-uniqueId")).toList());
+        processArgsInfo.getProgramArgs().addAll(processReq.getAddProgramArgs().stream().filter(e -> !e.startsWith("--debug4j-root-uniqueId")).toList());
+        Debugger.getDebug4jCommand().getReloadStartHandler().accept(processArgsInfo.getProgramArgs().stream().distinct().toList());
     }
 
     /**
@@ -256,10 +256,11 @@ public class Debug4jProcessOperator {
         if (Debugger.getDebug4jCommand().getOriginalArgs() != null && !Debugger.getDebug4jCommand().getOriginalArgs().isEmpty()) {
             log.info("originalProgramArgs: {}", JSON.toJSONString(Debugger.getDebug4jCommand().getOriginalArgs()));
             List<String> newProgramArgs = new ArrayList<>(Debugger.getDebug4jCommand().getOriginalArgs());
-            newProgramArgs.removeAll(processReqMessage.getRemoveProgramArgs());
-            newProgramArgs.addAll(processReqMessage.getAddProgramArgs());
+            newProgramArgs.removeAll(processReqMessage.getRemoveProgramArgs().stream().filter(e -> !e.startsWith("--debug4j-root-uniqueId")).toList());
+            newProgramArgs.addAll(processReqMessage.getAddProgramArgs().stream().filter(e -> !e.startsWith("--debug4j-root-uniqueId")).toList());
             log.info("newProgramArgs: {}", JSON.toJSONString(Debugger.getDebug4jCommand().getOriginalArgs()));
-            command.addAll(newProgramArgs);
+            command.addAll(newProgramArgs.stream().distinct().toList());
+            Debugger.getDebug4jCommand().setOriginalArgs(newProgramArgs.stream().distinct().toList());
         }
         String rootUniqueId = StrUtil.isNotBlank(Debugger.getDebug4jCommand().getRootUniqueId()) ?
                 Debugger.getDebug4jCommand().getRootUniqueId() : Debugger.getCommandInfoMessage().getUniqueId();
