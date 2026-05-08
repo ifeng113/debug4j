@@ -224,18 +224,35 @@ public class Debug4jProcessOperator {
             log.info("originalJvmArgs: {}", JSON.toJSONString(originalJvmArgs));
             List<String> newJvmArgs = new ArrayList<>(originalJvmArgs.stream()
                     .filter(e -> !processReqMessage.getRemoveJvmArgs().contains(e))
-                    .filter(e -> !e.startsWith("-Dcom.sun.management.jmxremote"))   // 屏蔽jmx冲突
+                    .filter(e -> !e.startsWith("-Dcom.sun.management.jmxremote"))
                     .filter(e -> !e.startsWith("-agentlib:jdwp")).toList());
-            Optional<String> any = originalJvmArgs.stream()
+            Optional<String> jdwpJvmArg = originalJvmArgs.stream()
                     .filter(e -> !processReqMessage.getRemoveJvmArgs().contains(e))
                     .filter(e -> e.startsWith("-agentlib:jdwp")).findAny();
-            if (any.isPresent()) {
-                String port = StringUtils.extractPort(any.get());
+            Optional<String> addJdwpJvmArg = processReqMessage.getAddJvmArgs().stream()
+                    .filter(e -> e.startsWith("-agentlib:jdwp")).findAny();
+            if (jdwpJvmArg.isPresent() && addJdwpJvmArg.isEmpty()) {
+                String port = StringUtils.extractPort(jdwpJvmArg.get());
                 if (StrUtil.isNotBlank(port)) {
-                    String newJdwpArg = any.get().replace(port, String.valueOf(NetUtil.getUsableLocalPort()));
+                    String newJdwpArg = jdwpJvmArg.get().replace(port, String.valueOf(NetUtil.getUsableLocalPort()));
                     newJdwpArg = newJdwpArg.replace("server=n", "server=y");
                     newJdwpArg = newJdwpArg.replace("suspend=y", "suspend=n");
-                    newJvmArgs.add(0, newJdwpArg);
+                    newJvmArgs.add(newJdwpArg);
+                }
+            }
+            List<String> jmxJvmArg = originalJvmArgs.stream()
+                    .filter(e -> !processReqMessage.getRemoveJvmArgs().contains(e))
+                    .filter(e -> e.startsWith("-Dcom.sun.management.jmxremote")).toList();
+            if (!jmxJvmArg.isEmpty()) {
+                String newJmxPort = String.valueOf(NetUtil.getUsableLocalPort());
+                for (String jmxJvmAgr : jmxJvmArg) {
+                    if (jmxJvmAgr.startsWith("-Dcom.sun.management.jmxremote.port")) {
+                        newJvmArgs.add("-Dcom.sun.management.jmxremote.port=" + newJmxPort);
+                    } else if (jmxJvmAgr.startsWith("-Dcom.sun.management.jmxremote.rmi.port")) {
+                        newJvmArgs.add("-Dcom.sun.management.jmxremote.rmi.port=" + newJmxPort);
+                    } else {
+                        newJvmArgs.add(jmxJvmAgr);
+                    }
                 }
             }
             newJvmArgs.addAll(processReqMessage.getAddJvmArgs());
@@ -708,7 +725,7 @@ public class Debug4jProcessOperator {
             }
             case module_status -> {
                 Map<String, String> moduleStatus = new LinkedHashMap<>();
-                moduleStatus.put("arthas", checkModuleInstalled(8563) ? "8563/3568" : arthasInstallProcess != null && arthasInstallProcess.isAlive() ? "-" :  "");
+                moduleStatus.put("arthas", checkModuleInstalled(8563) ? "8563/3568" : arthasInstallProcess != null && arthasInstallProcess.isAlive() ? "-" : "");
                 moduleStatus.put("ssh", checkModuleInstalled(22) ? "22" : sshInstallProcess != null && sshInstallProcess.isAlive() ? "-" : "");
                 moduleStatus.put("proxy", Debug4jHttpProxy.isAlive() ? "7980" : "");
                 moduleStatus.put("sftp", (sshd != null && !sshd.isClosed() && sshd.isStarted()) ? sshd.getPort() + "" : "");
