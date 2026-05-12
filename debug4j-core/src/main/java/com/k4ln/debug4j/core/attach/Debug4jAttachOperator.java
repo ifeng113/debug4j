@@ -96,7 +96,7 @@ public class Debug4jAttachOperator {
         List<String> classes = new ArrayList<>();
         for (Class allLoadedClass : instrumentation.getAllLoadedClasses()) {
             if (!allLoadedClass.getName().contains("$") // 过滤代理类及内部类
-                    && (StrUtil.isBlank(packageName) ? allLoadedClass.getName().startsWith(configPackageName) : allLoadedClass.getName().startsWith(packageName))) {
+                    && (packageName == null ? allLoadedClass.getName().startsWith(configPackageName) : allLoadedClass.getName().startsWith(packageName))) { // 传入""获取所有类
                 classes.add(allLoadedClass.getName());
             }
         }

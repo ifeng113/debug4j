@@ -16,6 +16,7 @@ public enum AdjustmentTypeEnum {
     file_remove,            // 删除文件（夹）
     file_download,          // 下载文件（夹）
     file_reader,            // 文件读取
+    obj_info_discovery,     // 对象信息发现
     obj_info,               // 对象信息
     obj_field,              // 对象属性
     obj_method,             // 对象方法

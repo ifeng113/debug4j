@@ -24,6 +24,11 @@ public class ManageClientRespVO {
     private String applicationName;
 
     /**
+     * 包名
+     */
+    private String packageName;
+
+    /**
      * 通信客户端主机名
      */
     private String socketClientHost;

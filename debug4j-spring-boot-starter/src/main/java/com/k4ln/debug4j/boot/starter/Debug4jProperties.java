@@ -38,7 +38,7 @@ public class Debug4jProperties {
     /**
      * 包名
      */
-    private String packageName;
+    private String packageName = "";
 
     /**
      * 服务端主机

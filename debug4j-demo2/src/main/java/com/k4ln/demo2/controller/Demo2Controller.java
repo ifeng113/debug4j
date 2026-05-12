@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+import static com.k4ln.demo2.controller.Demo2StaticUtils.hKey;
+
 
 /**
  * 服务端接口类
@@ -69,6 +71,8 @@ public class Demo2Controller {
         log.info("k88:{}", JSON.toJSONString(k88));
         log.info("k89:{}", JSON.toJSONString(k89));
         log.info("k100:{}", JSON.toJSONString(k100));
+
+        log.info("hKey:{}", JSON.toJSONString(hKey));
 
         return "demo2_p";
     }

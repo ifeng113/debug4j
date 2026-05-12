@@ -3,9 +3,21 @@ package com.k4ln.debug4j.boot.starter.hook;
 import cn.hutool.extra.spring.SpringUtil;
 import org.springframework.aop.framework.AopProxyUtils;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 public class SpringBeanHandler {
+
+    /**
+     * 获取所有Spring Bean名称
+     *
+     * @param obj
+     * @return
+     */
+    public static List<String> discovery(Object obj) {
+        return Arrays.asList(SpringUtil.getBeanFactory().getBeanDefinitionNames());
+    }
 
     /**
      * 获取 Spring Bean

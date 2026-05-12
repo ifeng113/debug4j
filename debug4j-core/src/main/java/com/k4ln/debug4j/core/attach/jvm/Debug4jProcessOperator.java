@@ -290,9 +290,10 @@ public class Debug4jProcessOperator {
      * 进程调整
      *
      * @param adjustmentReqMessage
+     * @param packageName
      * @return
      */
-    public static ProcessAdjustmentInfo adjustment(CommandProcessAdjustmentReqMessage adjustmentReqMessage) {
+    public static ProcessAdjustmentInfo adjustment(CommandProcessAdjustmentReqMessage adjustmentReqMessage, String packageName) {
         switch (adjustmentReqMessage.getAdjustmentType()) {
             case log -> {
                 Map<String, String> adjustmentContent = adjustmentReqMessage.getAdjustmentContent();
@@ -566,6 +567,9 @@ public class Debug4jProcessOperator {
                     return adjustmentError("filePath or matchString is empty");
                 }
             }
+            case obj_info_discovery -> {
+                return discoveryObjInfo(adjustmentReqMessage, packageName);
+            }
             case obj_info -> {
                 return getObjInfo(adjustmentReqMessage);
             }
@@ -837,6 +841,42 @@ public class Debug4jProcessOperator {
         }
         wrapper.put(keyString, JSON.toJSON(returnValue));
         return wrapper;
+    }
+
+    /**
+     * 发现对象信息
+     *
+     * @param adjustmentReqMessage
+     * @param packageName
+     * @return
+     */
+    private static ProcessAdjustmentInfo discoveryObjInfo(CommandProcessAdjustmentReqMessage adjustmentReqMessage, String packageName) {
+        JSONObject jsonObject = new JSONObject();
+        List<String> objNames = new ArrayList<>();
+        Map<String, String> adjustmentContent = adjustmentReqMessage.getAdjustmentContent();
+        String objType = adjustmentContent.get("objType");
+        if ("hook".equals(objType)) {
+            Debug4jCommand debug4jCommand = Debugger.getDebug4jCommand();
+            if (debug4jCommand.getExtendedHook() != null && debug4jCommand.getExtendedHook().get(ExtendedHookType.HOOK_OBJ_DISCOVERY) != null) {
+                Object hookObjNames = debug4jCommand.getExtendedHook().get(ExtendedHookType.HOOK_OBJ_DISCOVERY).apply(null);
+                if (hookObjNames instanceof Collection<?>) {
+                    @SuppressWarnings("unchecked")
+                    Collection<String> collection = (Collection<String>) hookObjNames;
+                    objNames.addAll(collection);
+                } else {
+                    return adjustmentError("hook not found");
+                }
+            } else {
+                return adjustmentError("hook not found");
+            }
+        } else {
+            String objPackageName = adjustmentContent.get("objPackageName");
+            objNames.addAll(Debug4jAttachOperator.getAllClass(Debugger.getInstrumentation(), packageName, objPackageName));
+        }
+        jsonObject.put("objNames", objNames);
+        return ProcessAdjustmentInfo.builder()
+                .adjustmentExtendResult(jsonObject)
+                .build();
     }
 
     /**
