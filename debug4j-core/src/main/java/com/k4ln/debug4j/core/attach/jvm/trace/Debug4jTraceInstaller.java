@@ -28,7 +28,7 @@ public class Debug4jTraceInstaller {
 
     /**
      * 安装追踪
-     * Controller 中的 @RequestParam 必须显示声明nane
+     * Controller 中的 @RequestParam 必须显示声明 name
      * 不支持方法体内部链路，如果需包含内部链路，可使用 Arthas（相关源码类：com.taobao.arthas.core.advisor.Enhancer#transform）
      *
      * @param inst
