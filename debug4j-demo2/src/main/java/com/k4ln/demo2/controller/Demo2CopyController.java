@@ -37,8 +37,8 @@ public class Demo2CopyController {
 
     @GetMapping("/p")
     public String demo2(@RequestParam(required = false) String p) {
-        log.error("------------param------------");
-        return "demo2_cp_p";
+        log.error("------------param------------{}", p);
+        return "demo2_cp_p：" + p;
     }
 
 

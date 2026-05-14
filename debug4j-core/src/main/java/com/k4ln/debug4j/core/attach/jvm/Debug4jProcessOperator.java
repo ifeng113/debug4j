@@ -59,6 +59,8 @@ import java.util.zip.GZIPInputStream;
 
 import static com.k4ln.debug4j.common.utils.SocketProtocolUtil.*;
 import static com.k4ln.debug4j.common.utils.SystemUtils.getClassName;
+import static com.k4ln.debug4j.core.attach.jvm.trace.Debug4jTraceInstaller.classNameMethodMap;
+import static com.k4ln.debug4j.core.attach.jvm.trace.Debug4jTraceInstaller.transformerMap;
 import static com.k4ln.debug4j.core.client.SocketClient.callbackFileMessage;
 
 @Slf4j
@@ -614,36 +616,15 @@ public class Debug4jProcessOperator {
                 }
             }
             case obj_method -> {
-                // 根据objType获取对象：hook模式下直接操作对象，可执行所有方法；非hook模式判断方法是否为static，如果是直接执行，如果不是则创建对象执行
                 Map<String, String> adjustmentContent = adjustmentReqMessage.getAdjustmentContent();
-                String objName = adjustmentContent.get("objName");
-                String objType = adjustmentContent.get("objType");
-                String objTypeParam = adjustmentContent.get("objTypeParam");
-                String methodInfoString = adjustmentContent.get("methodInfo");
-                ObjMethodInfo methodInfo = JSON.parseObject(methodInfoString, ObjMethodInfo.class);
-                Object obj = null;
-                if ("hook".equals(objType)) {
-                    Debug4jCommand debug4jCommand = Debugger.getDebug4jCommand();
-                    if (debug4jCommand.getExtendedHook() != null && debug4jCommand.getExtendedHook().get(ExtendedHookType.HOOK_OBJ) != null) {
-                        obj = debug4jCommand.getExtendedHook().get(ExtendedHookType.HOOK_OBJ).apply(Map.of("objName", objName, "objTypeParam", objTypeParam));
-                    }
-                } else {
-                    try {
-                        Class<?> aClass = Class.forName(objName);
-                        obj = aClass.getDeclaredConstructor().newInstance();
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                }
+                Object obj = getMethodObj(adjustmentContent);
                 if (obj == null) {
                     return adjustmentError("The object corresponding to objName could not be retrieved successfully");
                 }
+                String methodInfoString = adjustmentContent.get("methodInfo");
+                ObjMethodInfo methodInfo = JSON.parseObject(methodInfoString, ObjMethodInfo.class);
                 try {
-                    Class[] classes = new Class[methodInfo.getArgTypeList().size()];
-                    for (int i = 0; i < methodInfo.getArgTypeList().size(); i++) {
-                        classes[i] = loadParamClass(methodInfo.getArgTypeList().get(i));
-                    }
-                    Method method = ReflectUtil.getMethod(obj.getClass(), methodInfo.getMethodName(), classes);
+                    Method method = getMethodByInfo(methodInfo, obj);
                     Object returnValue = ReflectUtil.invokeRaw(obj, method, methodInfo.getArgValues().toArray());
                     return ProcessAdjustmentInfo.builder().adjustmentExtendResult(getReturnValue(returnValue)).build();
                 } catch (Exception e) {
@@ -654,24 +635,28 @@ public class Debug4jProcessOperator {
             case obj_trace -> {
                 Map<String, String> adjustmentContent = adjustmentReqMessage.getAdjustmentContent();
                 boolean traceType = StrUtil.isNotBlank(adjustmentContent.get("traceType")) && "install".equals(adjustmentContent.get("traceType"));
-                if (StrUtil.isNotBlank(adjustmentContent.get("traceClassInfo"))) {
-                    JSONArray jsonArray = JSONArray.parseArray(adjustmentContent.get("traceClassInfo"));
-                    if (jsonArray != null && !jsonArray.isEmpty()) {
-                        for (int i = 0; i < jsonArray.size(); i++) {
-                            JSONObject jsonObject = jsonArray.getJSONObject(i);
-                            if (jsonObject != null && StrUtil.isNotBlank(jsonObject.getString("className"))) {
-                                if (traceType) {
-                                    Debug4jTraceInstaller.install(Debugger.getInstrumentation(), jsonObject.getString("className"), jsonObject.getString("methodName"));
-                                } else {
-                                    Debug4jTraceInstaller.uninstall(Debugger.getInstrumentation(), jsonObject.getString("className"));
-                                }
-                            }
+                Object obj = getMethodObj(adjustmentContent);
+                if (obj == null) {
+                    return adjustmentError("The object corresponding to objName could not be retrieved successfully");
+                }
+                String methodInfoString = adjustmentContent.get("methodInfo");
+                ObjMethodInfo methodInfo = JSON.parseObject(methodInfoString, ObjMethodInfo.class);
+                if (methodInfo != null) {
+                    try {
+                        Method method = getMethodByInfo(methodInfo, obj);
+                        if (traceType) {
+                            Debug4jTraceInstaller.install(Debugger.getInstrumentation(), obj.getClass().getName(), method.toGenericString());
+                        } else {
+                            Debug4jTraceInstaller.uninstall(Debugger.getInstrumentation(), obj.getClass().getName(), method.toGenericString());
                         }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        return adjustmentError(e);
                     }
                 }
                 JSONObject jsonObject = new JSONObject();
-                for (String className : Debug4jTraceInstaller.getTransformerMap().keySet()) {
-                    jsonObject.put(className, Debug4jTraceInstaller.getClassNameMethodMap().get(className) == null ? "" : Debug4jTraceInstaller.getClassNameMethodMap().get(className));
+                for (String className : transformerMap.keySet()) {
+                    jsonObject.put(className, classNameMethodMap.getOrDefault(className, new ArrayList<>()));
                 }
                 return ProcessAdjustmentInfo.builder()
                         .adjustmentExtendResult(jsonObject)
@@ -799,6 +784,49 @@ public class Debug4jProcessOperator {
             e.printStackTrace();
         }
         return null;
+    }
+
+    /**
+     * 获取方法对象
+     *
+     * @param adjustmentContent
+     * @return
+     */
+    private static Object getMethodObj(Map<String, String> adjustmentContent) {
+        // 根据objType获取对象：hook模式下直接操作对象，可执行所有方法；非hook模式判断方法是否为static，如果是直接执行，如果不是则创建对象执行
+        String objName = adjustmentContent.get("objName");
+        String objType = adjustmentContent.get("objType");
+        String objTypeParam = adjustmentContent.get("objTypeParam");
+        Object obj = null;
+        if ("hook".equals(objType)) {
+            Debug4jCommand debug4jCommand = Debugger.getDebug4jCommand();
+            if (debug4jCommand.getExtendedHook() != null && debug4jCommand.getExtendedHook().get(ExtendedHookType.HOOK_OBJ) != null) {
+                obj = debug4jCommand.getExtendedHook().get(ExtendedHookType.HOOK_OBJ).apply(Map.of("objName", objName, "objTypeParam", objTypeParam));
+            }
+        } else {
+            try {
+                Class<?> aClass = Class.forName(objName);
+                obj = aClass.getDeclaredConstructor().newInstance();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        return obj;
+    }
+
+    /**
+     * 通过方法信息获取方法
+     *
+     * @param methodInfo
+     * @param obj
+     * @return
+     */
+    private static Method getMethodByInfo(ObjMethodInfo methodInfo, Object obj) {
+        Class[] classes = new Class[methodInfo.getArgTypeList().size()];
+        for (int i = 0; i < methodInfo.getArgTypeList().size(); i++) {
+            classes[i] = loadParamClass(methodInfo.getArgTypeList().get(i));
+        }
+        return ReflectUtil.getMethod(obj.getClass(), methodInfo.getMethodName(), classes);
     }
 
     /**

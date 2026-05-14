@@ -15,6 +15,9 @@ import java.math.RoundingMode;
 @AllArgsConstructor
 public class Debug4jTraceInfo {
 
+    @Builder.Default
+    private boolean ignore = true;
+
     /**
      * 链路ID
      */
@@ -31,7 +34,7 @@ public class Debug4jTraceInfo {
     private long end;
 
     /**
-     * 链路ID
+     * 方法名称
      */
     private String method;
 
