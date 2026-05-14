@@ -10,10 +10,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -83,6 +80,20 @@ public class Demo2Controller {
         log.info("p22:{}", p22);
         log.error("------------demo2_p2------------");
         return Result.ok("demo2_p2");
+    }
+
+    @PostMapping("/p2p")
+    public Result<List<String>> demo2(@RequestBody List<String> pps) {
+        log.info("pps:{}", JSON.toJSONString(pps));
+        log.error("------------p2p------------");
+        return Result.ok(pps);
+    }
+
+    @PostMapping("/p9")
+    public Result<Demo2ControllerDto> demo9(@RequestBody Demo2ControllerDto d2) {
+        log.info("p9:{}", JSON.toJSONString(d2));
+        log.error("------------p9------------");
+        return Result.ok(d2);
     }
 
     @GetMapping("/p3")

@@ -8,7 +8,6 @@ import cn.hutool.core.util.ReflectUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.core.util.ZipUtil;
 import com.alibaba.fastjson2.JSON;
-import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
 import com.k4ln.debug4j.common.daemon.Debug4jCommand;
 import com.k4ln.debug4j.common.daemon.enums.ExtendedHookType;
@@ -38,7 +37,6 @@ import org.apache.sshd.sftp.server.SftpSubsystemFactory;
 
 import java.io.*;
 import java.lang.management.ManagementFactory;
-import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -626,7 +624,7 @@ public class Debug4jProcessOperator {
                 try {
                     Method method = getMethodByInfo(methodInfo, obj);
                     Object returnValue = ReflectUtil.invokeRaw(obj, method, methodInfo.getArgValues().toArray());
-                    return ProcessAdjustmentInfo.builder().adjustmentExtendResult(getReturnValue(returnValue)).build();
+                    return ProcessAdjustmentInfo.builder().adjustmentExtendResult(JSONObject.of("returnValue", returnValue)).build();
                 } catch (Exception e) {
                     e.printStackTrace();
                     return adjustmentError(e);
@@ -639,20 +637,20 @@ public class Debug4jProcessOperator {
                 if (obj == null) {
                     return adjustmentError("The object corresponding to objName could not be retrieved successfully");
                 }
-                String methodInfoString = adjustmentContent.get("methodInfo");
-                ObjMethodInfo methodInfo = JSON.parseObject(methodInfoString, ObjMethodInfo.class);
-                if (methodInfo != null) {
-                    try {
-                        Method method = getMethodByInfo(methodInfo, obj);
-                        if (traceType) {
+                if (traceType) {
+                    String methodInfoString = adjustmentContent.get("methodInfo");
+                    ObjMethodInfo methodInfo = JSON.parseObject(methodInfoString, ObjMethodInfo.class);
+                    if (methodInfo != null) {
+                        try {
+                            Method method = getMethodByInfo(methodInfo, obj);
                             Debug4jTraceInstaller.install(Debugger.getInstrumentation(), obj.getClass().getName(), method.toGenericString());
-                        } else {
-                            Debug4jTraceInstaller.uninstall(Debugger.getInstrumentation(), obj.getClass().getName(), method.toGenericString());
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            return adjustmentError(e);
                         }
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        return adjustmentError(e);
                     }
+                } else {
+                    Debug4jTraceInstaller.uninstall(Debugger.getInstrumentation(), obj.getClass().getName(), adjustmentContent.get("methodGeneric"));
                 }
                 JSONObject jsonObject = new JSONObject();
                 for (String className : transformerMap.keySet()) {
@@ -827,48 +825,6 @@ public class Debug4jProcessOperator {
             classes[i] = loadParamClass(methodInfo.getArgTypeList().get(i));
         }
         return ReflectUtil.getMethod(obj.getClass(), methodInfo.getMethodName(), classes);
-    }
-
-    /**
-     * 获取返回数据
-     *
-     * @param returnValue
-     * @return
-     */
-    private static JSONObject getReturnValue(Object returnValue) {
-        String keyString = "returnValue";
-        JSONObject wrapper = new JSONObject();
-        if (returnValue == null) {
-            wrapper.put(keyString, null);
-            return wrapper;
-        }
-        if (returnValue instanceof JSONObject) {
-            wrapper.put(keyString, returnValue);
-            return wrapper;
-        }
-        if (returnValue instanceof JSONArray) {
-            wrapper.put(keyString, returnValue);
-            return wrapper;
-        }
-        if (returnValue instanceof CharSequence
-                || returnValue instanceof Number
-                || returnValue instanceof Boolean
-                || returnValue.getClass().isEnum()) {
-            wrapper.put(keyString, returnValue);
-            return wrapper;
-        }
-        Class<?> clazz = returnValue.getClass();
-        if (clazz.isArray()) {
-            int len = Array.getLength(returnValue);
-            JSONArray arr = new JSONArray();
-            for (int i = 0; i < len; i++) {
-                arr.add(Array.get(returnValue, i));
-            }
-            wrapper.put(keyString, arr);
-            return wrapper;
-        }
-        wrapper.put(keyString, JSON.toJSON(returnValue));
-        return wrapper;
     }
 
     /**
