@@ -358,13 +358,17 @@ public class Debug4jProcessOperator {
             case jvm_jfr_start -> {
                 try {
                     Map<String, String> adjustmentResult = Map.of("jdk.jfr.Recording", "Not supported");
+                    JSONObject extendResult = null;
                     if (recording == null) {
                         try {
+                            Map<String, String> adjustmentContent = adjustmentReqMessage.getAdjustmentContent();
+                            String duration = adjustmentContent.getOrDefault("maxSeconds", "3600"); // 1小时
+                            String size = adjustmentContent.getOrDefault("maxSize", "20971520"); // 200M
                             Class.forName("jdk.jfr.Recording");
                             recording = new Recording(Configuration.getConfiguration("profile"));
                             Recording recordingPoint = (Recording) recording;
-                            recordingPoint.setMaxAge(Duration.ofHours(1));  // 1小时
-                            recordingPoint.setMaxSize(200 * 1024 * 1024L);  // 200M
+                            recordingPoint.setMaxAge(Duration.ofSeconds(Integer.parseInt(duration)));
+                            recordingPoint.setMaxSize(Long.parseLong(size));
                             recordingPoint.start();
                             adjustmentResult = recordingPoint.getSettings();
                         } catch (Exception ignore) {
@@ -372,8 +376,9 @@ public class Debug4jProcessOperator {
                     } else {
                         Recording recordingPoint = (Recording) recording;
                         adjustmentResult = recordingPoint.getSettings();
+                        extendResult = JSONObject.of("isExist", true);
                     }
-                    return ProcessAdjustmentInfo.builder().adjustmentResult(adjustmentResult).build();
+                    return ProcessAdjustmentInfo.builder().adjustmentResult(adjustmentResult).adjustmentExtendResult(extendResult).build();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
