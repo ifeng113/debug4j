@@ -507,7 +507,11 @@ public class Debug4jAttachOperator {
     private static String parseType(SignatureAttribute.Type type) {
         if (type instanceof SignatureAttribute.ClassType ct) {
             StringBuilder sb = new StringBuilder();
-            sb.append(ct.getName());
+            if (ct.getDeclaringClass() != null) {
+                sb.append(ct.getDeclaringClass()).append("$").append(ct.getName());
+            } else {
+                sb.append(ct.getName());
+            }
             if (ct.getTypeArguments() != null && ct.getTypeArguments().length > 0) {
                 sb.append("<");
                 for (int i = 0; i < ct.getTypeArguments().length; i++) {

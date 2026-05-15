@@ -1,8 +1,10 @@
 package com.k4ln.debug4j.common.response;
 
 import com.k4ln.debug4j.common.response.exception.BaseException;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -11,9 +13,11 @@ import lombok.extern.slf4j.Slf4j;
  * @author k4ln
  * @since 2024-04-22
  */
+@Slf4j
 @Data
 @Builder
-@Slf4j
+@NoArgsConstructor
+@AllArgsConstructor
 public class Result<T> {
 
     /**

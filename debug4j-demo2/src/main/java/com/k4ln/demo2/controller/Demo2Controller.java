@@ -59,7 +59,7 @@ public class Demo2Controller {
 
 
     @GetMapping("/p")
-    public String demo2(@RequestParam(required = false) String p) {
+    public String demo2(@RequestParam(required = false) String p, Integer pi) {
         log.error("------------param------------");
 
         log.info("k2:{}", k2);
@@ -70,6 +70,9 @@ public class Demo2Controller {
         log.info("k100:{}", JSON.toJSONString(k100));
 
         log.info("hKey:{}", JSON.toJSONString(hKey));
+
+
+        log.info("pi:{}", pi);
 
         return "demo2_p";
     }
@@ -96,6 +99,14 @@ public class Demo2Controller {
         return Result.ok(d2);
     }
 
+    @PostMapping("/p91")
+    public Result<DemoNoBeanDto> demo9(@RequestBody DemoNoBeanDto d91) {
+        log.info("p91:{}", JSON.toJSONString(d91));
+        log.error("------------p91------------");
+        return Result.ok(d91);
+    }
+
+
     @GetMapping("/p3")
     public Result<String> demo3(@RequestParam(required = false, name = "pps") List<String> pps, @RequestParam(required = false, name = "p22") String p22) {
         int a = 9;
@@ -115,8 +126,10 @@ public class Demo2Controller {
         return Result.ok("demo_p4");
     }
 
-    public void voidTest(Result<String>[] k101) {
+    @PostMapping("/t1")
+    public Result<String> voidTest(@RequestBody Result<String>[] k101) {
         log.info("voidTest:{}", JSON.toJSONString(k101));
+        return Result.ok("demo_p4");
     }
 
     public void voidTest2(String[] k102) {

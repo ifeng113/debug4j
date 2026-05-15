@@ -623,6 +623,14 @@ public class Debug4jProcessOperator {
                 ObjMethodInfo methodInfo = JSON.parseObject(methodInfoString, ObjMethodInfo.class);
                 try {
                     Method method = getMethodByInfo(methodInfo, obj);
+                    for (int i = 0; i < methodInfo.getArgValues().size(); i++) {
+                        try {
+                            Object realObj = JSONObject.parseObject(methodInfo.getArgValues().get(i).toString(), loadParamClass(methodInfo.getArgTypeList().get(i)));
+                            methodInfo.getArgValues().set(i, realObj);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
                     Object returnValue = ReflectUtil.invokeRaw(obj, method, methodInfo.getArgValues().toArray());
                     return ProcessAdjustmentInfo.builder().adjustmentExtendResult(JSONObject.of("returnValue", returnValue)).build();
                 } catch (Exception e) {
