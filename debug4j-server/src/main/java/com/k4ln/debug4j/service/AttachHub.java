@@ -124,7 +124,10 @@ public class AttachHub {
         AttachFileTask fileTask = attachFileTask.get(reqId);
         if (fileTask != null) {
             try {
-                fileTask.getQueue().put(data);
+                boolean offer = fileTask.getQueue().offer(data, 30, TimeUnit.SECONDS);
+                if (!offer) {
+                    pushFileResult(reqId, data, completed);
+                }
             } catch (Exception e) {
                 e.printStackTrace();
             }

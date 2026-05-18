@@ -300,6 +300,12 @@ public class ProcessService {
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
+            Map<String, String> adjustmentContent = new HashMap<>();
+            adjustmentContent.put("break", "true");
+            adjustmentContent.put("clientId", String.valueOf(clientId));
+            socketServer.sendMessage(adjustmentReqVO.getClientSessionId(), clientId, ProtocolTypeEnum.COMMAND,
+                    CommandProcessAdjustmentReqMessage.buildCommandProcessAdjustmentReqMessage(reqId,
+                            AdjustmentTypeEnum.file_download, adjustmentContent));
             attachHub.getAttachFileTask().remove(clientId);
         }
     }

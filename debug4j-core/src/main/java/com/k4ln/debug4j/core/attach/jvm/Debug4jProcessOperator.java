@@ -48,6 +48,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.regex.Pattern;
@@ -80,6 +81,12 @@ public class Debug4jProcessOperator {
      * SSH安装进程
      */
     private static Process sshInstallProcess = null;
+
+    /**
+     * 下载客户端ID
+     */
+    private static Set<String> downloadClientId = ConcurrentHashMap.newKeySet();
+    ;
 
     /**
      * Arthas安装进程
@@ -371,7 +378,8 @@ public class Debug4jProcessOperator {
                             recordingPoint.setMaxSize(Long.parseLong(size));
                             recordingPoint.start();
                             adjustmentResult = recordingPoint.getSettings();
-                        } catch (Exception ignore) {
+                        } catch (Exception e) {
+                            e.printStackTrace();
                         }
                     } else {
                         Recording recordingPoint = (Recording) recording;
@@ -454,44 +462,54 @@ public class Debug4jProcessOperator {
                 }
             }
             case file_download -> {
-                try {
-                    Map<String, String> adjustmentContent = adjustmentReqMessage.getAdjustmentContent();
-                    Path path = Paths.get(adjustmentContent.get("fileAbsolutePath")).toAbsolutePath();
-                    if (Files.exists(path)) {
-                        File downloadFile;
-                        if (Files.isDirectory(path)) {
-                            File src = path.toFile();
-                            downloadFile = new File(src.getParent(), src.getName() + ".zip");
-                            ZipUtil.zip(path.toAbsolutePath().toString(), downloadFile.getAbsolutePath());
-                        } else {
-                            downloadFile = path.toFile();
-                        }
-                        RandomAccessFile randomAccessFile = new RandomAccessFile(downloadFile.getAbsolutePath(), "r");
-                        long length = randomAccessFile.length();
-                        int maxBodyLength = READ_BUFFER_SIZE - BUFFER_LENGTH - BUFFER_HEADER;
-                        if (length > maxBodyLength) {
-                            double div = NumberUtil.div(length, maxBodyLength, 0, RoundingMode.UP);
-                            int subcontractCount = Double.valueOf(div).intValue();
-                            for (int i = 0; i < length; i += maxBodyLength) {
-                                int bodyLength = Math.min(maxBodyLength, Long.valueOf(length - i).intValue());
-                                byte[] simple = new byte[bodyLength];
-                                randomAccessFile.seek(i);
-                                randomAccessFile.read(simple);
-                                callbackFileMessage(Integer.parseInt(adjustmentContent.get("clientId")), simple, subcontractCount, i / maxBodyLength + 1);
+                Map<String, String> adjustmentContent = adjustmentReqMessage.getAdjustmentContent();
+                String breakStatus = adjustmentContent.get("break");
+                if (StrUtil.isNotBlank(breakStatus) && "true".equals(breakStatus)) {
+                    downloadClientId.remove(adjustmentContent.get("clientId"));
+                    return adjustmentError("download break");
+                }
+                Path path = Paths.get(adjustmentContent.get("fileAbsolutePath")).toAbsolutePath();
+                if (Files.exists(path)) {
+                    new Thread(() -> {
+                        try {
+                            File downloadFile;
+                            if (Files.isDirectory(path)) {
+                                File src = path.toFile();
+                                downloadFile = new File(src.getParent(), src.getName() + ".zip");
+                                ZipUtil.zip(path.toAbsolutePath().toString(), downloadFile.getAbsolutePath());
+                            } else {
+                                downloadFile = path.toFile();
                             }
-                        } else {
-                            byte[] simple = new byte[Long.valueOf(length).intValue()];
-                            randomAccessFile.seek(0);
-                            randomAccessFile.read(simple);
-                            callbackFileMessage(Integer.parseInt(adjustmentContent.get("clientId")), simple, 1, 1);
+                            RandomAccessFile randomAccessFile = new RandomAccessFile(downloadFile.getAbsolutePath(), "r");
+                            long length = randomAccessFile.length();
+                            int maxBodyLength = READ_BUFFER_SIZE - BUFFER_LENGTH - BUFFER_HEADER;
+                            if (length > maxBodyLength) {
+                                downloadClientId.add(adjustmentContent.get("clientId"));
+                                double div = NumberUtil.div(length, maxBodyLength, 0, RoundingMode.UP);
+                                int subcontractCount = Double.valueOf(div).intValue();
+                                for (int i = 0; i < length; i += maxBodyLength) {
+                                    if (downloadClientId.contains(adjustmentContent.get("clientId"))) {
+                                        int bodyLength = Math.min(maxBodyLength, Long.valueOf(length - i).intValue());
+                                        byte[] simple = new byte[bodyLength];
+                                        randomAccessFile.seek(i);
+                                        randomAccessFile.read(simple);
+                                        callbackFileMessage(Integer.parseInt(adjustmentContent.get("clientId")), simple, subcontractCount, i / maxBodyLength + 1);
+                                    }
+                                }
+                                downloadClientId.remove(adjustmentContent.get("clientId"));
+                            } else {
+                                byte[] simple = new byte[Long.valueOf(length).intValue()];
+                                randomAccessFile.seek(0);
+                                randomAccessFile.read(simple);
+                                callbackFileMessage(Integer.parseInt(adjustmentContent.get("clientId")), simple, 1, 1);
+                            }
+                            randomAccessFile.close();
+                        } catch (Exception e) {
+                            e.printStackTrace();
                         }
-                        randomAccessFile.close();
-                    } else {
-                        return adjustmentError("fileAbsolutePath is not exist");
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    return adjustmentError(e);
+                    }).start();
+                } else {
+                    return adjustmentError("fileAbsolutePath is not exist");
                 }
             }
             case file_reader -> {
