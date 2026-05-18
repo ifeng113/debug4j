@@ -12,6 +12,8 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Map;
+
 /**
  * 进程接口类
  *
@@ -85,5 +87,23 @@ public class ProcessController {
     public void adjustmentDownload(@RequestBody @Valid ProcessAdjustmentReqVO adjustmentReqVO, HttpServletResponse response) {
         processService.adjustmentDownload(adjustmentReqVO, response);
     }
+
+    /**
+     * 下载文件（GET）
+     *
+     * @param clientSessionId
+     * @param fileAbsolutePath
+     * @param response
+     */
+    @GetMapping(value = "/adjustment/download/get")
+    public void adjustmentDownload(@RequestParam("clientSessionId") String clientSessionId,
+                                   @RequestParam("fileAbsolutePath") String fileAbsolutePath,
+                                   HttpServletResponse response) {
+        processService.adjustmentDownload(ProcessAdjustmentReqVO.builder()
+                .clientSessionId(clientSessionId)
+                .adjustmentContent(Map.of("fileAbsolutePath", fileAbsolutePath))
+                .build(), response);
+    }
+
 
 }
