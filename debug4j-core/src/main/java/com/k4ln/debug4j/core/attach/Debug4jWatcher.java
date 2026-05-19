@@ -28,22 +28,18 @@ public class Debug4jWatcher {
     /**
      * filePath -> CommandTaskReqMessage
      */
-    private static TimedCache<String, TaskInfo> watcher; // 持续30秒，等待服务端心跳
+    private static final TimedCache<String, TaskInfo> watcher = CacheUtil.newTimedCache(30 * 1000);  // 持续30秒，等待服务端心跳;
 
-    private static void initWatcher() {
-        if (watcher == null) {
-            watcher = CacheUtil.newTimedCache(30 * 1000);
-            // 仅过期移除触发（获取过程中会先同步检查是否过期，如果过期会优先执行监听器逻辑再返回）
-            watcher.setListener((key, cachedObject) -> cachedObject.getTailer().stop());
-            watcher.schedulePrune(1000);
-        }
+    static {
+        // 仅过期移除触发（获取过程中会先同步检查是否过期，如果过期会优先执行监听器逻辑再返回）
+        watcher.setListener((key, cachedObject) -> cachedObject.getTailer().stop());
+        watcher.schedulePrune(1000);
     }
 
     /**
      * 清理所有监听器
      */
     public static void clear() {
-        initWatcher();
         watcher.keySet().forEach(e -> watcher.get(e).getTailer().stop());
         watcher.clear();
     }
@@ -54,7 +50,6 @@ public class Debug4jWatcher {
      * @return
      */
     public static List<CommandTaskReqMessage> getTask() {
-        initWatcher();
         if (watcher.isEmpty()) {
             return new ArrayList<>();
         }
@@ -70,7 +65,6 @@ public class Debug4jWatcher {
      * @return
      */
     public synchronized static List<CommandTaskReqMessage> openTask(CommandTaskReqMessage reqMessage) {
-        initWatcher();
         Path path = Path.of(reqMessage.getFilePath());
         File file = FileUtil.file(path.toFile());
         if (file.exists() && !file.isDirectory()) {
@@ -105,7 +99,6 @@ public class Debug4jWatcher {
      * @return
      */
     public synchronized static List<CommandTaskReqMessage> closeTask(CommandTaskReqMessage reqMessage) {
-        initWatcher();
         TaskInfo taskInfo = watcher.get(watcherKey(reqMessage), false);
         if (taskInfo != null) {
             taskInfo.getTailer().stop();

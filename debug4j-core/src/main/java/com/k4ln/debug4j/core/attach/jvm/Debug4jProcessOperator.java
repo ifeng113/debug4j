@@ -26,6 +26,7 @@ import com.k4ln.debug4j.core.attach.jvm.logger.LoggerInfo;
 import com.k4ln.debug4j.core.attach.jvm.logger.LoggerOperator;
 import com.k4ln.debug4j.core.attach.jvm.proxy.Debug4jHttpProxy;
 import com.k4ln.debug4j.core.attach.jvm.trace.Debug4jTraceInstaller;
+import com.k4ln.debug4j.core.client.SocketClient;
 import com.sun.management.HotSpotDiagnosticMXBean;
 import jdk.jfr.Configuration;
 import jdk.jfr.Recording;
@@ -85,8 +86,7 @@ public class Debug4jProcessOperator {
     /**
      * 下载客户端ID
      */
-    private static Set<String> downloadClientId = ConcurrentHashMap.newKeySet();
-    ;
+    private static final Set<String> downloadClientId = ConcurrentHashMap.newKeySet();
 
     /**
      * Arthas安装进程
@@ -423,23 +423,12 @@ public class Debug4jProcessOperator {
                     String filename = adjustmentContent.get("filename");
                     String temporaryFilename = "upload_" + adjustmentContent.get("clientId") + "_" + filename;
                     RandomAccessFile randomAccessFile = new RandomAccessFile(temporaryFilename, "rw");
-                    Debugger.getSocketClient().getSessionRandomAccessFile().put(adjustmentContent.get("clientId"), FileInfo.builder()
+                    SocketClient.getSessionRandomAccessFile().put(adjustmentContent.get("clientId"), FileInfo.builder()
                             .randomAccessFile(randomAccessFile)
                             .fileDir(adjustmentContent.get("fileDir"))
                             .temporaryFilename(temporaryFilename)
                             .filename(filename)
-                            .lastModified(System.currentTimeMillis())
                             .build());
-                    Debugger.getSocketClient().getSessionRandomAccessFile().entrySet().removeIf(e -> {
-                        if (e.getValue().getLastModified() < System.currentTimeMillis() - 1000 * 60 * 10) {
-                            try {
-                                e.getValue().getRandomAccessFile().close();
-                            } catch (Exception ignored) {
-                            }
-                            return true;
-                        }
-                        return false;
-                    });
                 } catch (FileNotFoundException e) {
                     e.printStackTrace();
                 }
@@ -480,6 +469,7 @@ public class Debug4jProcessOperator {
                             } else {
                                 downloadFile = path.toFile();
                             }
+//                            callbackMessage(Integer.parseInt(adjustmentContent.get("clientId")), ProtocolTypeEnum.FILE, Files.readAllBytes(downloadFile.toPath()));
                             RandomAccessFile randomAccessFile = new RandomAccessFile(downloadFile.getAbsolutePath(), "r");
                             long length = randomAccessFile.length();
                             int maxBodyLength = READ_BUFFER_SIZE - BUFFER_LENGTH - BUFFER_HEADER;
@@ -487,19 +477,23 @@ public class Debug4jProcessOperator {
                                 downloadClientId.add(adjustmentContent.get("clientId"));
                                 double div = NumberUtil.div(length, maxBodyLength, 0, RoundingMode.UP);
                                 int subcontractCount = Double.valueOf(div).intValue();
+                                byte[] maxBodyBuffer = new byte[maxBodyLength];
                                 for (int i = 0; i < length; i += maxBodyLength) {
                                     if (downloadClientId.contains(adjustmentContent.get("clientId"))) {
                                         int bodyLength = Math.min(maxBodyLength, Long.valueOf(length - i).intValue());
-                                        byte[] simple = new byte[bodyLength];
-                                        randomAccessFile.seek(i);
-                                        randomAccessFile.read(simple);
-                                        callbackFileMessage(Integer.parseInt(adjustmentContent.get("clientId")), simple, subcontractCount, i / maxBodyLength + 1);
+                                        if (bodyLength != maxBodyLength) {
+                                            byte[] endBodyBuffer = new byte[bodyLength];
+                                            randomAccessFile.read(endBodyBuffer);
+                                            callbackFileMessage(Integer.parseInt(adjustmentContent.get("clientId")), endBodyBuffer, subcontractCount, i / maxBodyLength + 1);
+                                        } else {
+                                            randomAccessFile.read(maxBodyBuffer);
+                                            callbackFileMessage(Integer.parseInt(adjustmentContent.get("clientId")), maxBodyBuffer, subcontractCount, i / maxBodyLength + 1);
+                                        }
                                     }
                                 }
                                 downloadClientId.remove(adjustmentContent.get("clientId"));
                             } else {
                                 byte[] simple = new byte[Long.valueOf(length).intValue()];
-                                randomAccessFile.seek(0);
                                 randomAccessFile.read(simple);
                                 callbackFileMessage(Integer.parseInt(adjustmentContent.get("clientId")), simple, 1, 1);
                             }

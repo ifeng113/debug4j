@@ -96,9 +96,13 @@ public class SocketServer {
                 }
                 if (protocol.getProtocolType().equals(ProtocolTypeEnum.FILE)) {
                     attachHub.pushFileResult(protocol.getClientId(), protocol.getBody(), Objects.equals(protocol.getSubcontractIndex(), protocol.getSubcontractCount()));
+                    return;
                 }
                 if (protocol.getSubcontract()) {
                     String sessionPackagingKey = getSessionPackagingKey(session, protocol);
+                    if (protocol.getSubcontractIndex() == 1) {
+                        sessionPackaging.remove(sessionPackagingKey);
+                    }
                     sessionPackaging.put(sessionPackagingKey, ArrayUtil.addAll(sessionPackaging.get(sessionPackagingKey), protocol.getBody()));
                     if (protocol.getSubcontractCount().equals(protocol.getSubcontractIndex())) {
                         messageHandler(session, protocol, sessionPackaging.get(sessionPackagingKey));

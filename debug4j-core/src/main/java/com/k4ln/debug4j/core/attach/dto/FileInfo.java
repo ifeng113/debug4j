@@ -33,8 +33,4 @@ public class FileInfo {
      */
     private String filename;
 
-    /**
-     * 上次修改时间（超过10分钟未修改后会删除）
-     */
-    private Long lastModified;
 }

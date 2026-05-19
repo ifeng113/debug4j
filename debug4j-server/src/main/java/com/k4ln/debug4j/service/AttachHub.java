@@ -124,10 +124,11 @@ public class AttachHub {
         AttachFileTask fileTask = attachFileTask.get(reqId);
         if (fileTask != null) {
             try {
-                boolean offer = fileTask.getQueue().offer(data, 30, TimeUnit.SECONDS);
-                if (!offer) {
-                    pushFileResult(reqId, data, completed);
+                if (!fileTask.getQueue().offer(data, 10, TimeUnit.SECONDS)) { // 入队最大等待时长10秒
+                    fileTask.setCompleted(true);
+                    return;
                 }
+//                fileTask.getQueue().put(data);
             } catch (Exception e) {
                 e.printStackTrace();
             }

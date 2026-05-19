@@ -24,7 +24,7 @@ import java.nio.ByteOrder;
 @Slf4j
 public class SocketProtocolUtil {
 
-    public static final int READ_BUFFER_SIZE = 1024;
+    public static final int READ_BUFFER_SIZE = 4096;
 
     public static final int BUFFER_LENGTH = 4;
 
@@ -157,8 +157,8 @@ public class SocketProtocolUtil {
     private static void send(AioSession session, SocketProtocol socketProtocol) {
         try {
             WriteBuffer writeBuffer = session.writeBuffer();
-            byte[] data = SocketProtocolUtil.buildProxyProtocol(socketProtocol);
-            writeBuffer.writeAndFlush(data);
+            byte[] data = buildProxyProtocol(socketProtocol);
+            writeBuffer.writeAndFlush(data); // proxy protocol 必须立即推送
         } catch (IOException e) {
             e.printStackTrace();
         }

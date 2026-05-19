@@ -1,5 +1,6 @@
 package com.k4ln.debug4j.core.client;
 
+import cn.hutool.cache.impl.TimedCache;
 import cn.hutool.core.util.ArrayUtil;
 import cn.hutool.core.util.HashUtil;
 import com.alibaba.fastjson2.JSON;
@@ -36,8 +37,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static com.k4ln.debug4j.common.utils.SocketProtocolUtil.*;
-
 @Slf4j
 public class SocketClient {
 
@@ -67,13 +66,13 @@ public class SocketClient {
     /**
      * socketServer -> packagingData
      */
-    final Map<String, byte[]> sessionPackaging = new ConcurrentHashMap<>();
+    static final Map<String, byte[]> sessionPackaging = new ConcurrentHashMap<>();
 
     /**
      * socketServer -> FileInfo
      */
     @Getter
-    final Map<String, FileInfo> sessionRandomAccessFile = new ConcurrentHashMap<>();
+    static final TimedCache<String, FileInfo> sessionRandomAccessFile = new TimedCache<>(10 * 60 * 1000);
 
     /**
      * 是否还存活
@@ -82,6 +81,19 @@ public class SocketClient {
      */
     public boolean isAlive() {
         return session != null && !session.isInvalid();
+    }
+
+    static {
+        sessionRandomAccessFile.setListener((key, value) -> {
+            try {
+                if (value != null) {
+                    value.getRandomAccessFile().close();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+        sessionRandomAccessFile.schedulePrune(1000);
     }
 
     public void shutdown() {
@@ -132,19 +144,18 @@ public class SocketClient {
                 // 上传文件：新建临时文件，流写入完毕后，再将临时文件移至上传目录（覆盖老文件，删除临时文件）
                 String clientId = String.valueOf(socketProtocol.getClientId());
                 FileInfo fileInfo = sessionRandomAccessFile.get(clientId);
+                if (fileInfo == null) {
+                    return;
+                }
                 try {
                     if (socketProtocol.getSubcontract()) {
-                        int maxBodyLength = READ_BUFFER_SIZE - BUFFER_LENGTH - BUFFER_HEADER;
-                        fileInfo.getRandomAccessFile().seek((long) (socketProtocol.getSubcontractIndex() - 1) * maxBodyLength);
                         fileInfo.getRandomAccessFile().write(socketProtocol.getBody());
-                        fileInfo.setLastModified(System.currentTimeMillis());
                         if (Objects.equals(socketProtocol.getSubcontractCount(), socketProtocol.getSubcontractIndex())) {
                             fileInfo.getRandomAccessFile().close();
                             sessionRandomAccessFile.remove(clientId);
                             moveReplaceRename(Path.of(fileInfo.getTemporaryFilename()), Paths.get(fileInfo.getFileDir()), fileInfo.getFilename());
                         }
                     } else {
-                        fileInfo.getRandomAccessFile().seek(0);
                         fileInfo.getRandomAccessFile().write(socketProtocol.getBody());
                         fileInfo.getRandomAccessFile().close();
                         sessionRandomAccessFile.remove(clientId);
@@ -152,7 +163,7 @@ public class SocketClient {
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
-                    if (fileInfo != null && fileInfo.getRandomAccessFile() != null) {
+                    if (fileInfo.getRandomAccessFile() != null) {
                         try {
                             fileInfo.getRandomAccessFile().close();
                         } catch (IOException e2) {
