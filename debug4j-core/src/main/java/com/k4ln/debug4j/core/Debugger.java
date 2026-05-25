@@ -7,13 +7,21 @@ import com.k4ln.debug4j.common.daemon.Debug4jMode;
 import com.k4ln.debug4j.common.daemon.enums.ReloadMode;
 import com.k4ln.debug4j.common.protocol.command.message.CommandInfoMessage;
 import com.k4ln.debug4j.core.client.SocketClient;
+import jadx.core.dex.nodes.FieldNode;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.agent.ByteBuddyAgent;
+import net.bytebuddy.dynamic.loading.ClassReloadingStrategy;
+import net.bytebuddy.implementation.MethodDelegation;
 
 import java.lang.instrument.Instrumentation;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+
+import static net.bytebuddy.matcher.ElementMatchers.named;
 
 @Slf4j
 public class Debugger {
@@ -76,6 +84,12 @@ public class Debugger {
         if (debug4jMode.equals(Debug4jMode.thread)) {
             try {
                 instrumentation = ByteBuddyAgent.install();
+                new ByteBuddy()
+                        .redefine(jadx.core.dex.visitors.ExtractFieldInit.class)
+                        .method(named("applyFieldsOrder"))
+                        .intercept(MethodDelegation.to(ApplyFieldsOrderPatch.class))
+                        .make()
+                        .load(jadx.core.dex.visitors.ExtractFieldInit.class.getClassLoader(), ClassReloadingStrategy.fromInstalledAgent());
             } catch (Exception e) {
                 log.warn("ByteBuddyAgent.install() failed:{} please run using the JDK environment.", e.getMessage());
             }
@@ -120,5 +134,21 @@ public class Debugger {
                 e.printStackTrace();
             }
         };
+    }
+
+    public static class ApplyFieldsOrderPatch {
+        public static void applyFieldsOrder(jadx.core.dex.nodes.ClassNode cls, List<jadx.core.dex.nodes.FieldNode> orderedFields) {
+            List<FieldNode> clsFields = cls.getFields();
+            boolean ordered = Collections.indexOfSubList(clsFields, orderedFields) != -1;
+            if (!ordered) {
+                for (jadx.core.dex.nodes.FieldNode field : orderedFields) {
+                    for (int i = 0; i < cls.getFields().size(); i++) {
+                        if (cls.getFields().get(i).equals(field)) {
+                            cls.getFields().set(i, field);
+                        }
+                    }
+                }
+            }
+        }
     }
 }

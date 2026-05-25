@@ -1,15 +1,5 @@
 package jadx.core.dex.visitors;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
-
 import jadx.api.plugins.input.data.attributes.JadxAttrType;
 import jadx.core.dex.attributes.AFlag;
 import jadx.core.dex.attributes.AType;
@@ -21,17 +11,16 @@ import jadx.core.dex.instructions.InsnType;
 import jadx.core.dex.instructions.args.InsnArg;
 import jadx.core.dex.instructions.args.InsnWrapArg;
 import jadx.core.dex.instructions.args.RegisterArg;
-import jadx.core.dex.nodes.BlockNode;
-import jadx.core.dex.nodes.ClassNode;
-import jadx.core.dex.nodes.FieldNode;
-import jadx.core.dex.nodes.InsnNode;
-import jadx.core.dex.nodes.MethodNode;
+import jadx.core.dex.nodes.*;
 import jadx.core.dex.visitors.shrink.CodeShrinkVisitor;
 import jadx.core.utils.BlockUtils;
 import jadx.core.utils.InsnRemover;
 import jadx.core.utils.ListUtils;
 import jadx.core.utils.Utils;
 import jadx.core.utils.exceptions.JadxException;
+
+import java.util.*;
+import java.util.stream.Collectors;
 
 @JadxVisitor(
         name = "ExtractFieldInit",
@@ -350,15 +339,11 @@ public class ExtractFieldInit extends AbstractVisitor {
         // check if already ordered
         boolean ordered = Collections.indexOfSubList(clsFields, orderedFields) != -1;
         if (!ordered) {
-            applyFieldUpdate(cls, orderedFields);
-        }
-    }
-
-    private static void applyFieldUpdate(ClassNode cls, List<FieldNode> orderedFields) {
-        for (FieldNode field : orderedFields) {
-            for (int i = 0; i < cls.getFields().size(); i++) {
-                if (cls.getFields().get(i).equals(field)) {
-                    cls.getFields().set(i, field);
+            for (FieldNode field : orderedFields) {
+                for (int i = 0; i < cls.getFields().size(); i++) {
+                    if (cls.getFields().get(i).equals(field)) {
+                        cls.getFields().set(i, field);
+                    }
                 }
             }
         }

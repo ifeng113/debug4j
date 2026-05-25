@@ -47,7 +47,7 @@ public class Debug4jAutoConfiguration {
 
     public static Map<ExtendedHookType, Function<Object, ?>> buildExtendedHook(ConfigurableEnvironment environment) {
         Map<ExtendedHookType, Function<Object, ?>> extendedHook = new HashMap<>();
-        extendedHook.put(ExtendedHookType.HOOK_ARGS, (Function<Object, Map<String, List<String>>>) h -> PropertySourcesHandler.getAllProperties(environment));
+        extendedHook.put(ExtendedHookType.HOOK_ARGS, (Function<Object, Map<String, List<String>>>) h -> PropertySourcesHandler.getAllProperties2(environment));
         extendedHook.put(ExtendedHookType.HOOK_ARGS_ADJUSTMENT, (Function<Object, Map<String, String>>) h -> PropertySourcesHandler.adjustmentProperties(environment, h));
         extendedHook.put(ExtendedHookType.HOOK_OBJ_DISCOVERY, SpringBeanHandler::discovery);
         extendedHook.put(ExtendedHookType.HOOK_OBJ, SpringBeanHandler::getBean);

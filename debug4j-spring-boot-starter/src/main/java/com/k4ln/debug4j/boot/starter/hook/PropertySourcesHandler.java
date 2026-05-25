@@ -37,7 +37,7 @@ public class PropertySourcesHandler {
                         .map(e -> e.getKey() + "=" + e.getValue())
                         .sorted(Comparator.comparing(String::toString))
                         .toList());
-            } else if (source instanceof CommandLineArgs commandLineArgs) { // 类遮蔽：https://blog.csdn.net/AlbenXie/article/details/150315384
+            } else if (source instanceof CommandLineArgs commandLineArgs) { // 类遮蔽：https://blog.csdn.net/AlbenXie/article/details/150315384。注意：当被遮蔽的类以libs方式被加载时会失效。
                 List<String> nonOptionArgs = commandLineArgs.getNonOptionArgs();
                 map.put(propertySource.getName() + "#nonOptionArgs", nonOptionArgs);
                 List<String> optionArgs = new ArrayList<>();
