@@ -365,7 +365,6 @@ public class Debug4jProcessOperator {
             case jvm_jfr_start -> {
                 try {
                     Map<String, String> adjustmentResult = Map.of("jdk.jfr.Recording", "Not supported");
-                    JSONObject extendResult = null;
                     if (recording == null) {
                         try {
                             Map<String, String> adjustmentContent = adjustmentReqMessage.getAdjustmentContent();
@@ -384,9 +383,8 @@ public class Debug4jProcessOperator {
                     } else {
                         Recording recordingPoint = (Recording) recording;
                         adjustmentResult = recordingPoint.getSettings();
-                        extendResult = JSONObject.of("isExist", true);
                     }
-                    return ProcessAdjustmentInfo.builder().adjustmentResult(adjustmentResult).adjustmentExtendResult(extendResult).build();
+                    return ProcessAdjustmentInfo.builder().adjustmentResult(adjustmentResult).build();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -410,7 +408,10 @@ public class Debug4jProcessOperator {
                 return ProcessAdjustmentInfo.builder().adjustmentResult(adjustmentResult).build();
             }
             case jvm_list -> {
-                return listFiles("", p -> p.startsWith("debug4j") && (p.endsWith("hprof") || p.endsWith("jfr")), false, false);
+                ProcessAdjustmentInfo adjustmentInfo = listFiles("", p -> p.startsWith("debug4j") && (p.endsWith("hprof") || p.endsWith("jfr")), false, false);
+                JSONObject extendResult = JSONObject.of("isExist", recording != null);
+                adjustmentInfo.setAdjustmentExtendResult(extendResult);
+                return adjustmentInfo;
             }
             case file_list -> {
                 Map<String, String> adjustmentContent = adjustmentReqMessage.getAdjustmentContent();
