@@ -30,7 +30,8 @@ public class ManageService {
         List<ManageClientRespVO> list = new ArrayList<>(infoMessageMap.values().stream().map(e -> BeanUtil.toBean(e, ManageClientRespVO.class)).toList());
         list.sort(Comparator.comparing(ManageClientRespVO::getApplicationName)
                 .thenComparing(ManageClientRespVO::getUniqueId)
-                .thenComparing(ManageClientRespVO::getDebug4jMode).reversed());
+                .thenComparing(ManageClientRespVO::getDebug4jMode).reversed()
+                .thenComparing(ManageClientRespVO::getRootUniqueId).reversed());
         return list;
     }
 }
