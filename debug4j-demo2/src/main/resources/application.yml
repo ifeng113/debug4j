@@ -3,11 +3,11 @@ server:
 
 spring:
   application:
-    name: demo2
+    name: demo2_local
 
 debug4j:
   package-name: com.k4ln
-  host: 127.0.0.1
+  host: 122.152.214.33
   port: 7988
   key: k4ln
 #  developer: true
