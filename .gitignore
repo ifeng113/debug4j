@@ -10,6 +10,7 @@ build/
 .idea/compiler.xml
 .idea/libraries/
 .idea/workspace.xml
+.idea/claudeCodeTabState.xml
 *.iws
 *.iml
 *.ipr
