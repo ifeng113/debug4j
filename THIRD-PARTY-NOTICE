@@ -30,18 +30,24 @@ software used by the Debug4j project, as required by their respective licenses.
 
 5. Logback
    Copyright (c) 1999-2024 QOS.ch
-   License: Eclipse Public License 1.0 / GNU Lesser General Public License 2.1
+   License: Eclipse Public License 1.0 (used under EPL-1.0)
+   Alternative: GNU Lesser General Public License 2.1
    https://logback.qos.ch/
+   Note: This project uses Logback under the EPL-1.0 license option.
 
 6. Javassist
    Copyright (c) 1999-2024 Shigeru Chiba, www.javassist.org
-   License: Apache License 2.0 / Mozilla Public License 1.1 / GNU Lesser General Public License 2.1
+   License: Apache License 2.0 (used under Apache-2.0)
+   Alternative: Mozilla Public License 1.1 / GNU Lesser General Public License 2.1
    https://www.javassist.org/
+   Note: This project uses Javassist under the Apache-2.0 license option.
 
 7. JavaParser
    Copyright (c) 2007-2024 JavaParser contributors
-   License: Apache License 2.0 / GNU Lesser General Public License 2.1
+   License: Apache License 2.0 (used under Apache-2.0)
+   Alternative: GNU Lesser General Public License 2.1
    https://github.com/javaparser/javaparser
+   Note: This project uses JavaParser under the Apache-2.0 license option.
 
 8. Byte Buddy
    Copyright (c) 2014 Rafael Winterhalter
