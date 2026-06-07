@@ -12,6 +12,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * Source: Spring Framework (https://spring.io/projects/spring-framework)
+ * Modified by debug4j project - relocated from original package for class shadowing
  */
 
 package org.springframework.core.env;

@@ -1,0 +1,99 @@
+Debug4j Third-Party Notices
+===========================
+
+This file contains the copyright and license information for third-party
+software used by the Debug4j project, as required by their respective licenses.
+
+--------------------------------------------------------------------------------
+
+1. jadx - Dex to Java decompiler
+   Copyright (c) 2018 Skylot
+   License: Apache License 2.0
+   https://github.com/skylot/jadx
+   Note: Contains modified source code from jadx-core (ExtractFieldInit.java)
+
+2. Spring Framework
+   Copyright 2002-2024 the original author or authors
+   License: Apache License 2.0
+   https://spring.io/projects/spring-framework
+   Note: Contains modified source code from Spring Framework (CommandLineArgs.java)
+
+3. Smart-Socket
+   Copyright (c) 三刀 (smartboot)
+   License: Apache License 2.0
+   https://github.com/smartboot/smart-socket
+
+4. Sa-Token
+   Copyright (c) dromara
+   License: Apache License 2.0
+   https://github.com/dromara/sa-token
+
+5. Logback
+   Copyright (c) 1999-2024 QOS.ch
+   License: Eclipse Public License 1.0 / GNU Lesser General Public License 2.1
+   https://logback.qos.ch/
+
+6. Javassist
+   Copyright (c) 1999-2024 Shigeru Chiba, www.javassist.org
+   License: Apache License 2.0 / Mozilla Public License 1.1 / GNU Lesser General Public License 2.1
+   https://www.javassist.org/
+
+7. JavaParser
+   Copyright (c) 2007-2024 JavaParser contributors
+   License: Apache License 2.0 / GNU Lesser General Public License 2.1
+   https://github.com/javaparser/javaparser
+
+8. Byte Buddy
+   Copyright (c) 2014 Rafael Winterhalter
+   License: Apache License 2.0
+   https://github.com/raphw/byte-buddy
+
+9. Apache Mina SSHD
+   Copyright (c) 2008-2024 The Apache Software Foundation
+   License: Apache License 2.0
+   https://github.com/apache/mina-sshd
+
+10. Hutool
+    Copyright (c) 2024 dromara
+    License: Mulan Permissive Software License, Version 2 (MulanPSL-2.0)
+    https://github.com/dromara/hutool
+
+11. Fastjson2
+    Copyright (c) Alibaba Group
+    License: Apache License 2.0
+    https://github.com/alibaba/fastjson2
+
+12. Lombok
+    Copyright (c) 2009-2024 The Project Lombok Authors
+    License: MIT License
+    https://projectlombok.org/
+
+13. Apache Log4j 2
+    Copyright (c) 1999-2024 The Apache Software Foundation
+    License: Apache License 2.0
+    https://logging.apache.org/log4j/2.x/
+
+14. Spring Boot
+    Copyright (c) 2012-2024 Pivotal, Inc.
+    License: Apache License 2.0
+    https://spring.io/projects/spring-boot
+
+15. JUnit 5
+    Copyright (c) 2015-2024 the JUnit team
+    License: Eclipse Public License 2.0
+    https://junit.org/junit5/
+
+16. Gradle Docker Plugin
+    Copyright (c) 2014-2024 Benjamin Muschko
+    License: Apache License 2.0
+    https://github.com/bmuschko/gradle-docker-plugin
+
+17. Shadow Plugin (Gradle)
+    Copyright (c) 2014-2024 John Engelman
+    License: Apache License 2.0
+    https://github.com/GradleUp/shadow
+
+--------------------------------------------------------------------------------
+
+This product includes software developed at The Apache Software Foundation
+(https://www.apache.org/).

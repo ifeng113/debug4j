@@ -10,7 +10,7 @@
   <a href="#-特性一览"><img src="https://img.shields.io/badge/feature-进程管理-orange" alt="进程管理"></a>
   <a href="#-特性一览"><img src="https://img.shields.io/badge/feature-日志管理-yellow" alt="日志管理"></a>
   <a href="#-特性一览"><img src="https://img.shields.io/badge/feature-组件增强-purple" alt="组件增强"></a>
-  <a href="https://github.com/ifeng113/debug4j/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT"></a>
+  <a href="https://github.com/ifeng113/debug4j/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-green" alt="Apache-2.0"></a>
 </p>
 
 ---
@@ -403,5 +403,5 @@ debug4j/
 ---
 
 <p align="center">
-  <sub>MIT License © 2024 debug4j</sub>
+  <sub>Apache License 2.0 © 2024 debug4j</sub>
 </p>
