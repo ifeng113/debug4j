@@ -1,0 +1,149 @@
+/* ========================================
+   Debug4j LOGO 水彩颜料背景特效
+   - 为 LOGO 添加常驻的艺术颜料背景
+   - 不影响 LOGO 位置，不产生水平滚动条
+   - 浅色/深色模式均正常显示
+   ======================================== */
+
+/* ── 首页 Hero LOGO 颜料效果 ── */
+.VPHomeHero .image-container {
+  position: relative;
+  display: inline-block;
+}
+
+/* 颜料背景层 - 在 LOGO 下方渲染 */
+.VPHomeHero .image-container::before {
+  content: '';
+  position: absolute;
+  /* 保持与 LOGO 同中心，略微扩大覆盖区域 */
+  top: 50%;
+  left: 50%;
+  width: 90%;
+  height: 90%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  z-index: 0;
+
+  /* ---- 颜料背景渐变 ---- */
+  /* 灵感来自水彩/油画颜料盘：紫→蓝→粉→青的流动混合 */
+  background:
+    /* 主晕染色块 */
+    radial-gradient(ellipse 60% 50% at 30% 35%, rgba(139, 92, 246, 0.45) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 60% at 70% 30%, rgba(59, 130, 246, 0.40) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 45% at 60% 70%, rgba(236, 72, 153, 0.35) 0%, transparent 65%),
+    radial-gradient(ellipse 45% 40% at 25% 65%, rgba(52, 211, 153, 0.25) 0%, transparent 60%),
+    radial-gradient(ellipse 35% 35% at 75% 60%, rgba(251, 191, 36, 0.20) 0%, transparent 55%);
+
+  /* 柔化边缘，模拟颜料在水中的弥散 */
+  filter: blur(28px);
+  opacity: 0.75;
+  pointer-events: none;
+
+  /* 细微的流动性动画 — 颜料在纸上慢慢晕开的感觉 */
+  animation: paint-bloom 8s ease-in-out infinite alternate;
+}
+
+/* 第二层颜料 — 较淡的底色，增加层次感 */
+.VPHomeHero .image-container::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 110%;
+  height: 110%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  z-index: 0;
+
+  background:
+    radial-gradient(ellipse 50% 40% at 50% 20%, rgba(167, 139, 250, 0.20) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 50% at 80% 80%, rgba(147, 197, 253, 0.15) 0%, transparent 60%),
+    radial-gradient(ellipse 35% 35% at 15% 75%, rgba(196, 181, 253, 0.12) 0%, transparent 50%);
+
+  filter: blur(40px);
+  opacity: 0.6;
+  pointer-events: none;
+  animation: paint-bloom-2 12s ease-in-out infinite alternate;
+}
+
+/* Hero 中的 LOGO 图片保持在最上层 */
+.VPHomeHero .image-container .image-src {
+  position: relative;
+  z-index: 1;
+  /* 保持原始大小不变 */
+  max-width: 100%;
+  height: auto;
+}
+
+/* 颜料晕开动画 */
+@keyframes paint-bloom {
+  0% {
+    opacity: 0.65;
+    filter: blur(26px);
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+  50% {
+    opacity: 0.80;
+    filter: blur(30px);
+    transform: translate(-50%, -50%) scale(1.05);
+  }
+  100% {
+    opacity: 0.70;
+    filter: blur(28px);
+    transform: translate(-50%, -50%) scale(1.0);
+  }
+}
+
+@keyframes paint-bloom-2 {
+  0% {
+    opacity: 0.50;
+    filter: blur(38px);
+    transform: translate(-50%, -50%) scale(0.98);
+  }
+  100% {
+    opacity: 0.65;
+    filter: blur(44px);
+    transform: translate(-50%, -50%) scale(1.04);
+  }
+}
+
+/* ── 深色模式背景调为 IDEA Darcula 风格 ── */
+.dark {
+  --vp-c-bg: #2b2b2b;
+  --vp-c-bg-alt: #313335;
+  --vp-c-bg-elv: #313335;
+  --vp-c-bg-soft: #313335;
+  --vp-c-border: #4b4e51;
+  --vp-c-divider: #4b4e51;
+  --vp-c-gutter: #313335;
+  --vp-c-bg-elv-up: #313335;
+  --vp-c-bg-elv-down: #2b2b2b;
+  --vp-c-bg-elv-mute: #3c3f41;
+  --vp-c-bg-elv-mute-active: #3c3f41;
+  --vp-c-mute: #3c3f41;
+  --vp-c-mute-hover: #4b4e51;
+}
+
+/* ── 导航栏 LOGO 深色模式反白 ── */
+.dark .VPNavBar .VPNavBarTitle .VPImage.logo {
+  filter: brightness(0) invert(1);
+}
+
+/* ── 确保页面不产生水平滚动条 ── */
+html {
+  overflow-x: hidden;
+}
+
+/* ── 针对移动端适配 ── */
+@media (max-width: 640px) {
+  .VPHomeHero .image-container::before {
+    width: 80%;
+    height: 80%;
+    filter: blur(20px);
+  }
+  .VPHomeHero .image-container::after {
+    width: 100%;
+    height: 100%;
+    filter: blur(30px);
+  }
+}
