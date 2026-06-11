@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://debug4j.xyz" target="_blank">
-    <img src="https://img.shields.io/badge/官方文档-debug4j.xyz-2563eb?style=for-the-badge&logo=readthedocs&logoColor=white" alt="官方文档">
+    <img src="https://img.shields.io/badge/官方文档-debug4j.xyz-059669?style=for-the-badge&logo=readthedocs&logoColor=white&labelColor=f97316" alt="官方文档">
   </a>
 </p>
 
