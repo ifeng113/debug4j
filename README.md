@@ -5,6 +5,12 @@
 </p>
 
 <p align="center">
+  <a href="https://debug4j.xyz" target="_blank">
+    <img src="https://img.shields.io/badge/📖 官方文档-debug4j.xyz-1a73e8" alt="官方文档">
+  </a>
+</p>
+
+<p align="center">
   <a href="#-特性一览"><img src="https://img.shields.io/badge/feature-代理穿透-blue" alt="代理穿透"></a>
   <a href="#-特性一览"><img src="https://img.shields.io/badge/feature-源码热更新-brightgreen" alt="源码热更新"></a>
   <a href="#-特性一览"><img src="https://img.shields.io/badge/feature-进程管理-orange" alt="进程管理"></a>
@@ -27,6 +33,7 @@
 - [项目结构](#-项目结构)
 - [使用场景](#-使用场景)
 - [使用限制](#-使用限制)
+- [官方文档](#-官方文档)
 - [交流与贡献](#-交流与贡献)
 
 ---
@@ -386,7 +393,27 @@ debug4j/
 
 ---
 
-## 💬 交流与贡献
+## 📖 官方文档
+
+> 🌐 访问 **[https://debug4j.xyz](https://debug4j.xyz)** 获取完整的产品文档和技术指南。
+
+官方文档站点提供了比 README 更全面、更详细的内容，涵盖：
+
+| 模块 | 说明 |
+|------|------|
+| 🚀 **快速开始** | 服务端部署、应用集成、环境配置等详细步骤 |
+| 🏗️ **架构设计** | 三端架构详解、通信协议、安全模型 |
+| 🔗 **代理穿透** | 端口映射、协议支持、快捷配置等操作指南 |
+| 📝 **源码管理** | 源码获取、在线编辑、热更新、行级补丁 |
+| ⚙️ **进程管理** | 系统参数、进程重载、对象增强、JVM 监控 |
+| 📋 **日志管理** | 日志等级、实时观测、日志检索 |
+| 🧩 **组件增强** | 文件管理、OpenSSH、Arthas 集成 |
+| 🔧 **配置参考** | 所有配置项说明、API 接口文档 |
+| ❓ **常见问题** | 使用过程中的常见问题与解决方案 |
+
+> 💡 提示：文档站持续更新中，建议收藏以便随时查阅最新内容。
+
+---
 
 <p align="center">
   <strong>QQ 群：1017333395</strong>
@@ -398,6 +425,10 @@ debug4j/
 
 <p align="center">
   💡 提示：如果您在使用过程中有任何问题或建议，欢迎提出 <a href="https://github.com/ifeng113/debug4j/issues">Issue</a>！
+</p>
+
+<p align="center">
+  📖 完整文档请访问 <a href="https://debug4j.xyz">https://debug4j.xyz</a>
 </p>
 
 ---
