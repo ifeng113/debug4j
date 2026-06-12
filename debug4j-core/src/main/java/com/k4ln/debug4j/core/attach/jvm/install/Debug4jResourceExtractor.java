@@ -53,7 +53,11 @@ public class Debug4jResourceExtractor {
                             if (!Files.exists(out)) {
                                 try (InputStream in = jar.getInputStream(e)) {
                                     log.info("jar mode start copying file: {}", out.getFileName());
-                                    Files.copy(in, out, StandardCopyOption.REPLACE_EXISTING);
+                                    // 强制将换行符转换为 Unix LF，确保 .sh 脚本在 Linux 上正常运行
+                                    String content = new String(in.readAllBytes())
+                                            .replace("\r\n", "\n")
+                                            .replace("\r", "\n");
+                                    Files.writeString(out, content);
                                 }
                             }
                         }
