@@ -128,7 +128,7 @@ public class Debug4jResourceExtractor {
     /**
      * 执行Arthas安装脚本
      */
-    public static Process runArthasInstall() {
-        return SystemUtils.exec("sh", targetDir.resolve("install-arthas.sh").toString(), String.valueOf(ProcessHandle.current().pid()));
+    public static Process runArthasInstall(Long pid) {
+        return SystemUtils.exec("sh", targetDir.resolve("install-arthas.sh").toString(), String.valueOf(pid));
     }
 }

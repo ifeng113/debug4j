@@ -213,6 +213,11 @@ public class Debug4jProcessOperator {
             log.info("coverEnvs: {}", JSON.toJSONString(environmentList));
             processBuilder.environment().putAll(environment);
             process = processBuilder.start();
+
+            if (arthasInstallStatus) {
+                arthasInstallProcess.destroy();
+                arthasInstallProcess = Debug4jResourceExtractor.runArthasInstall(process.pid());
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -714,7 +719,7 @@ public class Debug4jProcessOperator {
                         if (!arthasInstallStatus && (arthasInstallProcess == null || !arthasInstallProcess.isAlive())) {
                             arthasInstallStatus = true;
                             Debug4jResourceExtractor.extractInstall(); // 如果脚本运行时失败请自行修改替换，如果运行目录中存在脚本文件，（解压）拷贝时会跳过，不会覆盖
-                            arthasInstallProcess = Debug4jResourceExtractor.runArthasInstall();
+                            arthasInstallProcess = Debug4jResourceExtractor.runArthasInstall(ProcessHandle.current().pid());
                         }
                         return ProcessAdjustmentInfo.builder()
                                 .adjustmentResult(Map.of("arthas", "install processing"))
