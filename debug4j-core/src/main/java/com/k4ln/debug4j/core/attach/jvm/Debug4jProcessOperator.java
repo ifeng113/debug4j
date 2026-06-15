@@ -82,6 +82,7 @@ public class Debug4jProcessOperator {
      * SSH安装进程
      */
     private static Process sshInstallProcess = null;
+    private static boolean sshInstallStatus = false;
 
     /**
      * 下载客户端ID
@@ -92,6 +93,7 @@ public class Debug4jProcessOperator {
      * Arthas安装进程
      */
     private static Process arthasInstallProcess = null;
+    private static boolean arthasInstallStatus = false;
 
     /**
      * JFR
@@ -689,7 +691,8 @@ public class Debug4jProcessOperator {
             case module_ssh -> {
                 if (OsUtils.isUNIX()) {
                     if (!checkModuleInstalled(22)) {
-                        if (sshInstallProcess == null || !sshInstallProcess.isAlive()) {
+                        if (!sshInstallStatus && (sshInstallProcess == null || !sshInstallProcess.isAlive())) {
+                            sshInstallStatus = true;
                             Debug4jResourceExtractor.extractInstall(); // 如果脚本运行时失败请自行修改替换，如果运行目录中存在脚本文件，（解压）拷贝时会跳过，不会覆盖
                             sshInstallProcess = Debug4jResourceExtractor.runSSHInstall();
                         }
@@ -708,7 +711,8 @@ public class Debug4jProcessOperator {
             case module_arthas -> {
                 if (OsUtils.isUNIX()) {
                     if (!checkModuleInstalled(8563)) {
-                        if (arthasInstallProcess == null || !arthasInstallProcess.isAlive()) {
+                        if (!arthasInstallStatus && (arthasInstallProcess == null || !arthasInstallProcess.isAlive())) {
+                            arthasInstallStatus = true;
                             Debug4jResourceExtractor.extractInstall(); // 如果脚本运行时失败请自行修改替换，如果运行目录中存在脚本文件，（解压）拷贝时会跳过，不会覆盖
                             arthasInstallProcess = Debug4jResourceExtractor.runArthasInstall();
                         }
@@ -738,8 +742,8 @@ public class Debug4jProcessOperator {
             }
             case module_status -> {
                 Map<String, String> moduleStatus = new LinkedHashMap<>();
-                moduleStatus.put("arthas", checkModuleInstalled(8563) ? "8563/3568" : arthasInstallProcess != null && arthasInstallProcess.isAlive() ? "-" : "");
-                moduleStatus.put("ssh", checkModuleInstalled(22) ? "22" : sshInstallProcess != null && sshInstallProcess.isAlive() ? "-" : "");
+                moduleStatus.put("arthas", checkModuleInstalled(8563) ? "8563/3568" : arthasInstallStatus ? "-" : "");
+                moduleStatus.put("ssh", checkModuleInstalled(22) ? "22" : sshInstallStatus ? "-" : "");
                 moduleStatus.put("proxy", Debug4jHttpProxy.isAlive() ? "7980" : "");
                 moduleStatus.put("sftp", (sshd != null && !sshd.isClosed() && sshd.isStarted()) ? sshd.getPort() + "" : "");
                 return ProcessAdjustmentInfo.builder()
