@@ -20,7 +20,7 @@ dependencies {
     implementation "com.github.javaparser:javaparser-core:3.28.0"
 
     // 仅编译需要 log4j2 -> Log4j2Adapter。如果依赖的类不多的，可以使用类遮蔽的方式覆盖，参考debug4j-spring-boot-starter#CommandLineArgs
-    compileOnly "org.apache.logging.log4j:log4j-core:2.25.3"
+    compileOnly "org.apache.logging.log4j:log4j-core:2.25.4"
 
     implementation 'org.apache.sshd:sshd-sftp:2.16.0'
 
