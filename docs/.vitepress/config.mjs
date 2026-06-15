@@ -73,7 +73,7 @@ export default defineConfig({
 
     socialLinks: [
       { icon: 'github', link: 'https://github.com/ifeng113/debug4j' },
-      { icon: 'gitee', link: 'https://gitee.com/eairlv/debug4j' },
+      { icon: 'gitee', link: 'https://gitee.com/ifeng113/debug4j' },
     ],
 
     footer: {
