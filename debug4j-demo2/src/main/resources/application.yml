@@ -3,7 +3,7 @@ server:
 
 spring:
   application:
-    name: demo2_local
+    name: demo2
 
 debug4j:
   package-name: com.k4ln

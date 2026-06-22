@@ -74,6 +74,15 @@ public class Debug4jProcessOperator {
     public static Process process = null;
 
     /**
+     * 最大命令行长度阈值
+     * <p>
+     * Windows CreateProcessW (Unicode) 限制为 32,767 字符，取 30,000 预留余量；
+     * Linux/macOS 通常为 2MB，取 1,500,000 预留余量。
+     * 超出阈值时自动使用 Java 9+ @argfile 特性写入临时文件。
+     */
+    private static final long MAX_COMMAND_LINE_LENGTH = OsUtils.isUNIX() ? 1500000 : 30000;
+
+    /**
      * SFTP服务
      */
     private static SshServer sshd = null;
@@ -239,7 +248,10 @@ public class Debug4jProcessOperator {
             List<String> newJvmArgs = new ArrayList<>(originalJvmArgs.stream()
                     .filter(e -> !processReqMessage.getRemoveJvmArgs().contains(e))
                     .filter(e -> !e.startsWith("-Dcom.sun.management.jmxremote"))
-                    .filter(e -> !e.startsWith("-agentlib:jdwp")).toList());
+                    .filter(e -> !e.startsWith("-agentlib:jdwp"))
+                    .filter(e -> !isIdeJvmArg(e))
+                    .map(Debug4jProcessOperator::replaceGcLogFile)
+                    .toList());
             Optional<String> jdwpJvmArg = originalJvmArgs.stream()
                     .filter(e -> !processReqMessage.getRemoveJvmArgs().contains(e))
                     .filter(e -> e.startsWith("-agentlib:jdwp")).findAny();
@@ -281,7 +293,7 @@ public class Debug4jProcessOperator {
             command.add(Debugger.getDebug4jCommand().getJarPath());
         } else {
             command.add("-cp");
-            command.add(System.getProperty("java.class.path"));
+            command.add(filterIdeClasspath(System.getProperty("java.class.path")));
             command.add(Debugger.getDebug4jCommand().getCls().getName());
         }
         if (Debugger.getDebug4jCommand().getOriginalArgs() != null && !Debugger.getDebug4jCommand().getOriginalArgs().isEmpty()) {
@@ -296,8 +308,93 @@ public class Debug4jProcessOperator {
         String rootUniqueId = StrUtil.isNotBlank(Debugger.getDebug4jCommand().getRootUniqueId()) ?
                 Debugger.getDebug4jCommand().getRootUniqueId() : Debugger.getCommandInfoMessage().getUniqueId();
         command.add("--debug4j-root-uniqueId=" + rootUniqueId);
+        command = applyArgFileIfNeeded(command);
         log.info("newCommand:{}", JSON.toJSONString(command));
         return command;
+    }
+
+    /**
+     * 若命令行长度超过安全阈值，则使用 Java 9+ 的 @argfile 特性将参数写入临时文件
+     *
+     * @param command 原始命令列表
+     * @return 如果长度未超限则返回原列表，否则返回使用 @argfile 的命令
+     */
+    private static List<String> applyArgFileIfNeeded(List<String> command) {
+        long estimatedLength = command.stream()
+                .mapToLong(String::length)
+                .sum() + (command.size() - 1);
+
+        if (estimatedLength <= MAX_COMMAND_LINE_LENGTH) {
+            return command;
+        }
+
+        log.warn("Estimated command line length {} exceeds safe limit ({}), using @argfile",
+                estimatedLength, MAX_COMMAND_LINE_LENGTH);
+
+        try {
+            Path argFile = createArgFile(command.subList(1, command.size()));
+            return List.of(command.get(0), "@" + argFile.toAbsolutePath());
+        } catch (IOException e) {
+            log.error("Failed to create argument file for long command line, "
+                    + "falling back to original command which may fail", e);
+            return command;
+        }
+    }
+
+    /**
+     * 将参数列表写入临时文件（Java 9+ argument file 格式，每行一个参数）
+     * <p>
+     * 注意：
+     * 1. Java argfile 以空格/换行分隔参数，含空格的路径须用双引号包裹
+     * 2. Windows 路径中的 {@code \} 在 argfile 中被视为转义字符，必须替换为 {@code \\}
+     */
+    private static Path createArgFile(List<String> args) throws IOException {
+        Path argFile = Files.createTempFile("debug4j-args-", ".tmp");
+        argFile.toFile().deleteOnExit();
+        List<String> escapedArgs = args.stream()
+                .map(a -> a.contains(" ") ? "\"" + a + "\"" : a)
+                .map(a -> a.replace("\\", "\\\\"))
+                .toList();
+        Files.write(argFile, escapedArgs, StandardCharsets.UTF_8);
+        log.debug("Created argument file: {}", argFile.toAbsolutePath());
+        return argFile;
+    }
+
+    /**
+     * 判断是否为 IDE 专用的 JVM 参数（子进程脱离 IDE 后无意义且可能报错）
+     */
+    private static boolean isIdeJvmArg(String arg) {
+        return (arg.startsWith("-javaagent:") && arg.contains("captureAgent"))
+                || (arg.startsWith("-agentpath:") && arg.contains("idea_"))
+                || arg.contains("idea_rt.jar");
+    }
+
+    /**
+     * 替换 GC log 文件名，避免子进程与父进程写同一文件导致权限冲突
+     * -Xlog:gc*,gc+age=trace,gc+heap=info:file=debug4j-gc.log:time,level,tags
+     * → 替换为 debug4j-gc-{pid}-{timestamp}.log
+     */
+    private static String replaceGcLogFile(String arg) {
+        if (!arg.startsWith("-Xlog:") || !arg.contains("file=")) {
+            return arg;
+        }
+        // 匹配 file=debug4j-gc.log 或 file=/path/debug4j-gc.log
+        return arg.replaceAll("file=[^:]*debug4j-gc\\.log",
+                "file=debug4j-gc-" + ProcessHandle.current().pid() + "-" + System.currentTimeMillis() + ".log");
+    }
+
+    /**
+     * 过滤 classpath 中 IDE 相关的无效 jar 路径（如 idea_rt.jar），避免子进程启动报错
+     * 同时也消除路径空格问题，避免 argfile 解析出错
+     */
+    private static String filterIdeClasspath(String classpath) {
+        if (StrUtil.isBlank(classpath)) {
+            return classpath;
+        }
+        String separator = FileUtil.isWindows() ? ";" : ":";
+        return Arrays.stream(classpath.split(separator))
+                .filter(e -> !e.contains("idea_rt.jar"))
+                .collect(Collectors.joining(separator));
     }
 
     /**
