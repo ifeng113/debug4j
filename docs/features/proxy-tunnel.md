@@ -20,7 +20,7 @@
 |------|------|
 | 🔌 **JDWP 远程调试端口** | 通过代理穿透，IDE 可直接连接容器内的调试端口 |
 | 🔑 **SSH/SFTP 端口** | 通过 Server 端代理映射，直接 SSH 登录容器环境 |
-| 🛠️ **Arthas Tenant/Web-Console** | Tenant 可通过 CMD 直接连接，Web-Console 在浏览器中操作 |
+| 🔬 **Arthas Tenant/Web-Console** | Tenant 可通过 CMD 直接连接，Web-Console 在浏览器中操作 |
 | 🗄️ **中间件资源** | 访问用户进程连接的 MySQL、Redis 等服务资源 |
 | 🌐 **任意可达端口** | 用户进程网络可达的任意端口均可代理穿透 |
 
