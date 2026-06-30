@@ -36,13 +36,13 @@ debug4j:
 
 ```bash
 # 拉取 Docker 镜像
-docker pull k4ln/debug4j-server:0.2.1
+docker pull k4ln/debug4j-server:0.2.2
 
 # 基础模式启动
-docker run --net=host -d --name debug4j-server k4ln/debug4j-server:0.2.1
+docker run --net=host -d --name debug4j-server k4ln/debug4j-server:0.2.2
 
 # 设置通信密钥和 API 密钥
-docker run --net=host -d --name debug4j-server k4ln/debug4j-server:0.2.1 \
+docker run --net=host -d --name debug4j-server k4ln/debug4j-server:0.2.2 \
     --debug4j.key=k4ln --sa-token.http-basic='k4ln:123456'
 ```
 
@@ -66,7 +66,7 @@ docker run --net=host -d --name debug4j-server k4ln/debug4j-server:0.2.1 \
 <dependency>
     <groupId>io.github.ifeng113</groupId>
     <artifactId>debug4j-daemon</artifactId>
-    <version>0.2.1</version>
+    <version>0.2.2</version>
 </dependency>
 ```
 
@@ -82,7 +82,7 @@ Debug4jDaemon.start(true, "demo1-daemon", "com.k4ln", "127.0.0.1", 7988, "k4ln",
 <dependency>
     <groupId>io.github.ifeng113</groupId>
     <artifactId>debug4j-spring-boot-starter</artifactId>
-    <version>0.2.1</version>
+    <version>0.2.2</version>
 </dependency>
 ```
 
@@ -99,7 +99,7 @@ debug4j:
 ### Gradle
 
 ```groovy
-implementation 'io.github.ifeng113:debug4j-spring-boot-starter:0.2.1'
+implementation 'io.github.ifeng113:debug4j-spring-boot-starter:0.2.2'
 ```
 
 ---

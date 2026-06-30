@@ -64,7 +64,7 @@ features:
 ### 1. 启动 Server 端
 
 ```bash
-docker run --net=host -d --name debug4j-server k4ln/debug4j-server:0.2.1 \
+docker run --net=host -d --name debug4j-server k4ln/debug4j-server:0.2.2 \
     --debug4j.key=k4ln --sa-token.http-basic='k4ln:123456'
 ```
 
@@ -74,7 +74,7 @@ docker run --net=host -d --name debug4j-server k4ln/debug4j-server:0.2.1 \
 <dependency>
     <groupId>io.github.ifeng113</groupId>
     <artifactId>debug4j-spring-boot-starter</artifactId>
-    <version>0.2.1</version>
+    <version>0.2.2</version>
 </dependency>
 ```
 
