@@ -1,6 +1,7 @@
 package com.k4ln.debug4j.socket;
 
 import cn.hutool.core.util.ArrayUtil;
+import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson2.JSON;
 import com.k4ln.debug4j.common.daemon.Debug4jMode;
 import com.k4ln.debug4j.common.protocol.command.Command;
@@ -264,9 +265,10 @@ public class SocketServer {
      */
     public String getProcessSessionId(String threadSessionId) {
         CommandInfoMessage commandInfoMessage = infoMessageMap.get(threadSessionId);
+        String uniqueId = StrUtil.isNotBlank(commandInfoMessage.getRootUniqueId()) ? commandInfoMessage.getRootUniqueId() : commandInfoMessage.getUniqueId();
         Optional<CommandInfoMessage> any = infoMessageMap.values()
                 .stream()
-                .filter(e -> e.getDebug4jMode().equals(Debug4jMode.process) && e.getUniqueId().equals(commandInfoMessage.getUniqueId()))
+                .filter(e -> e.getDebug4jMode().equals(Debug4jMode.process) && e.getUniqueId().equals(uniqueId))
                 .findAny();
         return any.map(CommandInfoMessage::getClientSessionId).orElse(null);
     }
