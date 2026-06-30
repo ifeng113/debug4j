@@ -20,37 +20,37 @@ hero:
       link: /features/proxy-tunnel
 
 features:
-  - icon: 🔗
+  - icon: 🚇
     title: 代理穿透
     details: 仿 frp 的 TCP 隧道，SSH/JDWP/JMX/Redis/MySQL —— 容器内网任意 TCP 端口映射到本地，突破网络隔离。
     link: /features/proxy-tunnel
     linkText: 了解更多
 
-  - icon: 📝
+  - icon: 🔥
     title: 源码热更新
     details: 在线编辑源码 → 即时编译 → Instrumentation retransform 热更新。支持内部类、行级补丁，无需重启应用。
     link: /features/source-management
     linkText: 了解更多
 
-  - icon: ⚙️
+  - icon: 🛠️
     title: 进程管理
     details: JVM 参数/Spring 配置/Nacos 配置动态修改，进程重载（Reload/Restart），对象增强，Heap Dump，JFR 飞行记录。
     link: /features/process-management
     linkText: 了解更多
 
-  - icon: 📋
+  - icon: 📜
     title: 日志管理
     details: 日志级别动态调整（Logback/Log4j2），stdout 复制与关键词过滤，实时 tail，全目录 zgrep 检索。
     link: /features/log-management
     linkText: 了解更多
 
-  - icon: 🧩
+  - icon: 📦
     title: 组件增强
     details: SFTP 文件管理，一键安装 OpenSSH / Arthas，HTTP(S) 正向代理。让容器拥有 IDE 般的文件访问能力。
     link: /features/component-enhancement
     linkText: 了解更多
 
-  - icon: 🏗️
+  - icon: 🏛️
     title: 双模式架构
     details: 线程模式 + 进程模式混合架构。JDWP 场景下代理流量走独立进程，避免阻塞；普通调试走线程模式，资源开销极低。
     link: /guide/architecture
