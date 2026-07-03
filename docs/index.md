@@ -92,7 +92,7 @@ debug4j:
 :::
 
 ::: warning 已知问题
-本地运行时引入 debug4j 获取源码报错 `javassist.NotFoundException`，需手动引入依赖：
+本地IDE运行时，如果获取源码报错 `javassist.NotFoundException`，可尝试手动引入依赖：
 
 ```groovy
 implementation 'org.javassist:javassist:3.30.2-GA'
