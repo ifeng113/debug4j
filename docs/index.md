@@ -91,6 +91,16 @@ debug4j:
 启动应用，打开 `http://localhost:7987`，选择你的进程节点 —— 开始调试吧！🎉
 :::
 
+::: warning 已知问题
+本地运行时引入 debug4j 获取源码报错 `javassist.NotFoundException`，需手动引入依赖：
+
+```groovy
+implementation 'org.javassist:javassist:3.30.2-GA'
+```
+
+此问题会在下个版本（0.2.4）修复。
+:::
+
 ---
 
 ## 架构总览
